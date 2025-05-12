@@ -2,7 +2,7 @@ import { defineConfig } from "vitepress";
 
 // https://vitepress.vuejs.org/config/app-configs
 export default defineConfig({
-  base: "/kaikyou-vitepress/", //
+  base: "/kaikyou-vitepress/",
   title: "Kaikyou の開発ノート",
   description: "React / Next.js / Cloudflare D1 を中心にした開発ブログ",
   lang: "ja-JP",
@@ -82,6 +82,8 @@ export default defineConfig({
           items: [
             { text: "商品一覧", link: "/guide/pr_list" },
             { text: "ナビゲーション", link: "/guide/nb" },
+            { text: "登録", link: "/guide/register" },
+            { text: "ログイン", link: "/guide/login" },
             { text: "ダッシュボード（管理画面）", link: "/guide/dashboard" },
           ],
         },
