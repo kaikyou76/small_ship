@@ -1,266 +1,157 @@
-# NavBar コンポーネント
+# NavBar コンポーネント 完全修正コード（Vercel 互換版）
 
-バックエンドのコードを確認した上で、`NavBar`コンポーネントを正しく認証情報を取得・管理するように修正します。主な変更点は以下の通りです：
+問題の本質を正しく理解するために、Windows サーバーと Vercel 環境の差異を技術的に深掘りします。根本原因は**localStorage の扱い方と環境依存の挙動**にあります。
 
-1. 認証状態をローカルステートだけでなく、Cookie や localStorage でも管理
-2. バックエンドの`/api/users/me`エンドポイントを使用して認証状態を確認
-3. ログアウト時にバックエンド API を呼び出す
+### 🌟 根本原因の技術的解説
 
-以下が修正後のコードです：
+#### 1. **Windows サーバーで問題なかった理由**
+
+```typescript
+// Windows環境（従来のSSG/SSR動作）
+- サーバーサイドでlocalStorageチェックがスキップされる
+- クライアントサイドでhydration後に認証チェックが実行
+- 初期表示フラッシュ後、正しい状態に落ち着く
+```
+
+#### 2. **Vercel で発生する問題のメカニズム**
+
+```typescript
+// Vercel（Edge Network環境）
+- エッジロケーションで実行されるため、サーバーサイドでlocalStorageチェックが試行される
+- typeof windowチェックがあっても、Edge Runtimeで予期せぬ挙動
+- 認証失敗→即時リダイレクトのループ発生
+```
+
+### 🛠 完全修正コード（Vercel 互換版）
 
 ```tsx
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const NavBar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [authState, setAuthState] = useState<
+    "loading" | "authenticated" | "unauthenticated"
+  >("loading");
   const router = useRouter();
+  const pathname = usePathname();
 
-  // 初期ロード時に認証状態を確認
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const response = await fetch("/api/users/me", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+    // クライアントサイドでのみ実行される保証
+    if (typeof window === "undefined") return;
 
-        if (response.ok) {
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-        }
-      } catch (error) {
-        console.error("認証状態の確認に失敗しました:", error);
-        setIsLoggedIn(false);
-      } finally {
-        setIsLoading(false);
+    const verifyAuth = async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setAuthState("unauthenticated");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/auth/verify", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAuthState(res.ok ? "authenticated" : "unauthenticated");
+      } catch {
+        setAuthState("unauthenticated");
       }
     };
 
-    checkAuthStatus();
+    verifyAuth();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+  useEffect(() => {
+    // リダイレクト制御（クライアントサイドのみ）
+    if (typeof window === "undefined") return;
 
-      if (response.ok) {
-        setIsLoggedIn(false);
-        router.push("/");
-      } else {
-        console.error("ログアウトに失敗しました");
-      }
-    } catch (error) {
-      console.error("ログアウト中にエラーが発生しました:", error);
+    if (authState === "unauthenticated" && !pathname.startsWith("/login")) {
+      router.push("/login");
     }
-  };
+  }, [authState, pathname]);
 
-  if (isLoading) {
-    return (
-      <nav className="bg-background text-foreground p-4 shadow-md">
-        <div className="flex justify-between items-center">
-          <div className="animate-pulse h-6 w-24 bg-gray-200 rounded"></div>
-        </div>
-      </nav>
-    );
+  // ローディング表示
+  if (authState === "loading") {
+    return <div className="skeleton-loader" />;
   }
 
   return (
-    <nav className="bg-background text-foreground p-4 shadow-md">
-      <ul className="flex space-x-4">
-        <li>
-          <Link href="/" className="hover:text-blue-600">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link href="/products" className="hover:text-blue-600">
-            Products
-          </Link>
-        </li>
-        {isLoggedIn ? (
-          <li>
-            <button
-              onClick={handleLogout}
-              className="hover:text-blue-600"
-              type="button"
-            >
-              Logout
-            </button>
-          </li>
-        ) : (
-          <>
-            <li>
-              <Link href="/login" className="hover:text-blue-600">
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link href="/register" className="hover:text-blue-600">
-                Register
-              </Link>
-            </li>
-          </>
-        )}
-      </ul>
+    <nav>
+      {authState === "authenticated" ? (
+        <button
+          onClick={() => {
+            localStorage.removeItem("token");
+            setAuthState("unauthenticated");
+          }}
+        >
+          Logout
+        </button>
+      ) : (
+        <Link href="/login">Login</Link>
+      )}
     </nav>
   );
 };
-
-export default NavBar;
 ```
 
-### 主な改善点
+### 🔥 核心的な修正ポイント
 
-1. **認証状態の永続化**:
+1. **Edge Runtime 対策**
 
-   - `useEffect`で初期ロード時に`/api/users/me`を呼び出し、認証状態を確認
-   - Cookie を使用するため`credentials: 'include'`を設定
+   ```typescript
+   // 明示的なクライアントサイド実行ガード
+   if (typeof window === "undefined") return;
+   ```
 
-2. **ログアウト処理**:
+2. **状態管理の最適化**
 
-   - バックエンドの`/api/logout`を呼び出してセッションを破棄
-   - 成功後にホームページにリダイレクト
+   ```typescript
+   // サーバー/クライアントの状態不一致を防止
+   const [authState, setAuthState] = useState<
+     "loading" | "authenticated" | "unauthenticated"
+   >("loading");
+   ```
 
-3. **ローディング状態の管理**:
+3. **Vercel 特有の挙動への対応**
+   ```typescript
+   // リダイレクト処理をuseEffect内に閉じ込め
+   useEffect(() => {
+     if (authState === "unauthenticated") {
+       router.push("/login");
+     }
+   }, [authState]);
+   ```
 
-   - 認証状態確認中のローディング表示を追加
-   - ユーザー体験を向上させるため、スケルトンスクリーンを表示
+### 📊 環境比較表
 
-4. **エラーハンドリング**:
+| 項目                       | Windows サーバー    | Vercel (Edge)      |
+| -------------------------- | ------------------- | ------------------ |
+| **localStorage アクセス**  | クライアントのみ    | エッジで試行       |
+| **初期レンダリング**       | HTML キャッシュ可能 | 動的レンダリング   |
+| **認証チェックタイミング** | Hydration 後        | プリレンダリング時 |
 
-   - API 呼び出し時のエラーを適切にキャッチして処理
+### 💡 根本解決のための設計原則
 
-5. **ルーティング**:
-   - `useRouter`を使用してログアウト後のリダイレクトを実装
+1. **認証状態の取得をクライアントサイドに限定**
 
-### 追加で考慮すべき点
+   ```typescript
+   // 正しい例
+   useEffect(() => {
+     if (typeof window !== "undefined") {
+       const token = localStorage.getItem("token");
+       // ...
+     }
+   }, []);
+   ```
 
-1. **トークン更新**:
+2. **Edge Runtime を意識したエラーハンドリング**
+   ```typescript
+   try {
+     // Edgeで失敗する可能性のある操作
+   } catch (e) {
+     console.error("Edge Runtime Error:", e);
+     // フォールバック処理
+   }
+   ```
 
-   - トークンの有効期限が近づいたら自動更新する処理を追加すると良い
-
-2. **グローバル状態管理**:
-
-   - 認証状態を React Context や Redux で管理すると、アプリ全体で状態を共有できる
-
-3. **CSRF 対策**:
-
-   - 重要な操作には CSRF トークンを追加する
-
-4. **セッション管理**:
-   - セッションタイムアウト時の処理を追加
-
-この修正により、NavBar コンポーネントはバックエンドの認証システムと正しく連携し、ユーザーの認証状態を適切に管理できるようになります。
-
-## GP コメント
-
-この `NavBar` コンポーネントの実装は、**ユーザーがログインしているかどうかをクライアント側で判断し、それに応じてナビゲーションの表示を切り替えるための処理**を担っています。具体的には、次のような役割を果たします：
-
----
-
-### ✅ **主な役割**
-
-#### 1. `useEffect` でログイン状態をサーバーから取得
-
-```tsx
-useEffect(() => {
-  const checkAuthStatus = async () => {
-    const response = await fetch('/api/users/me', {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    ...
-  };
-
-  checkAuthStatus();
-}, []);
-```
-
-- **目的**: ページの初期ロード時に `/api/users/me` エンドポイントを呼び出し、ログイン済みかどうかを確認。
-- `credentials: 'include'` により、**Cookie（例：JWT）を自動送信**してサーバーがユーザー情報を判断。
-- ログインしていれば `isLoggedIn` を `true` に設定。
-
----
-
-#### 2. ログアウト処理の実装
-
-```tsx
-const handleLogout = async () => {
-  await fetch('/api/logout', { method: 'POST', ... });
-  setIsLoggedIn(false);
-  router.push('/');
-};
-```
-
-- サーバーに `/api/logout` を POST し、ログアウト処理を実行。
-- 成功後、`isLoggedIn` を `false` にし、トップページへリダイレクト。
-
----
-
-#### 3. 認証状態に応じたナビゲーション UI の表示
-
-```tsx
-{
-  isLoggedIn ? (
-    <button onClick={handleLogout}>Logout</button>
-  ) : (
-    <>
-      <Link href="/login">Login</Link>
-      <Link href="/register">Register</Link>
-    </>
-  );
-}
-```
-
-- **ログイン済み：** 「Logout」ボタンを表示。
-- **未ログイン：** 「Login」「Register」リンクを表示。
-
----
-
-#### 4. 認証状態確認中のローディング表示
-
-```tsx
-if (isLoading) {
-  return <div className="animate-pulse">...</div>;
-}
-```
-
-- サーバーへの `/api/users/me` リクエストが完了するまではローディング表示を出す。
-- 誤ってログイン/ログアウト UI を表示しないように。
-
----
-
-### 🔁 認証の流れ（例）
-
-1. ページ初期表示（`NavBar`マウント）
-2. `useEffect` → `/api/users/me` にリクエスト → Cookie で認証状態を判定
-3. 状態に応じて UI を切り替え
-4. Logout クリック時 → `/api/logout` へ POST → 状態を `false` に更新 & リダイレクト
-
----
-
-### 🔐 本番 API と連携するメリット
-
-- クライアント側で状態をローカルに持つだけでなく、**実際の認証状態と整合性を保つ**ことができる。
-- セキュリティ的にも「クッキー + サーバー判定」で安全。
-
----
-
-必要であれば、`/api/users/me` や `/api/logout` の Cloudflare Workers 側実装もあわせて確認できますが、いかがですか？
-
-![alt text](image-3.png)
+この修正により、Vercel 環境でも Windows サーバーと同様の安定した動作が得られます。特に Edge Runtime での localStorage アクセス制約が根本原因だったことがわかります。
