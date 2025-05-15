@@ -84,6 +84,7 @@ export default defineConfig({
             { text: "ナビゲーション", link: "/guide/nb" },
             { text: "登録", link: "/guide/register" },
             { text: "ログイン", link: "/guide/login" },
+            { text: "JWT認証開発", link: "/guide/jwt_ns" },
             { text: "グローバル状態管理", link: "/guide/groball" },
             { text: "ダッシュボード（管理画面）", link: "/guide/dashboard" },
           ],
@@ -257,6 +258,7 @@ export default defineConfig({
           text: "バックエンド説明",
           collapsed: false,
           items: [
+            { text: "メモ帳領域王国入国禁止 ", link: "/coment/mememe" },
             { text: "型定義 ", link: "/coment/type" },
             { text: "ミドルウェア ", link: "/coment/jwtmiddleware" },
             { text: "認証関連ユーティリティ", link: "/coment/auth" },

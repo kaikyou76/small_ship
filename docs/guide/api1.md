@@ -1,5 +1,23 @@
 # 1. 🔐 認証系 API 開発
 
+### 準備 → 管理者権限を指定ユーザーに付与
+
+```bash
+npx wrangler d1 execute shopping-db --remote --command="select * from users"
+```
+
+![alt text](image-38.png)
+
+```bash
+npx wrangler d1 execute shopping-db --remote --command="UPDATE users SET role='admin' WHERE name='wangxiaoyun';"
+```
+
+```bash
+npx wrangler d1 execute shopping-db --remote --command="select * from users"
+```
+
+![alt text](image-39.png)
+
 Next.js と Cloudflare Workers/D1 を使用した認証 API の実装を以下に示します。まず、必要なエンドポイントを実装する前に、認証関連のユーティリティ関数を準備します。
 
 ### 1. 認証関連ユーティリティファイルの作成
@@ -9,7 +27,7 @@ Next.js と Cloudflare Workers/D1 を使用した認証 API の実装を以下�
 ```typescript
 // backend/src/lib/auth.ts
 import { SignJWT, jwtVerify } from "jose";
-import { Env, JwtPayload } from "types/types";
+import { Env, JwtPayload } from "../types/types";
 
 // トークン生成関数
 export async function generateAuthToken(
@@ -106,7 +124,7 @@ export async function verifyPassword(
 //backend/src/types/types.ts
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import { z } from "zod";
-import { productSchema } from "../schemas/product";
+import { productSchema } from "@/schemas/product";
 
 //エラーコードを定義
 export const INVALID_SESSION = "INVALID_SESSION";
@@ -141,6 +159,7 @@ export interface JwtPayload {
   iat?: number;
   iss?: string;
   aud?: string | string[];
+  role?: string;
 }
 
 /**
@@ -204,6 +223,17 @@ export interface SuccessResponse<T = unknown> {
   };
 }
 
+export interface LoginResponseData {
+  token: string;
+  refreshToken?: string; // オプショナル追加
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
+
 /**
  * Hono の Context に拡張変数を型として登録
  * ctx.get('jwtPayload') などの補完が効くようになる
@@ -245,8 +275,24 @@ export interface ProductCreateResponse {
 import { SignJWT, jwtVerify } from "jose";
 import { MiddlewareHandler } from "hono";
 import { Env, JwtPayload } from "../types/types";
+import { Buffer } from "buffer";
 
-// パスワードハッシュ設定型
+// デバッグ用ロガー
+const debugLog = (message: string, data?: any) => {
+  console.log(
+    `[${new Date().toISOString()}] [JWT] ${message}`,
+    JSON.stringify(data, null, 2)
+  );
+};
+
+// エラーロガー
+const errorLog = (error: Error, context?: any) => {
+  console.error(`[${new Date().toISOString()}] [JWT ERROR] ${error.message}`, {
+    stack: error.stack,
+    context,
+  });
+};
+
 type Pbkdf2Config = {
   iterations: number;
   hash: "SHA-256" | "SHA-512";
@@ -254,7 +300,6 @@ type Pbkdf2Config = {
   keyLen: number;
 };
 
-// 環境別PBKDF2設定
 const PBKDF2_CONFIG: Record<string, Pbkdf2Config> = {
   development: {
     iterations: 100_000,
@@ -270,59 +315,83 @@ const PBKDF2_CONFIG: Record<string, Pbkdf2Config> = {
   },
 };
 
-// 認証トークン生成
 export async function generateAuthToken(
   env: Env,
   userId: number,
   email: string,
+  role: string,
   expiresIn = "2h"
 ): Promise<string> {
-  const secret = new TextEncoder().encode(env.JWT_SECRET);
-  return new SignJWT({ user_id: userId, email })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuer(env.JWT_ISSUER)
-    .setAudience(env.JWT_AUDIENCE)
-    .setExpirationTime(expiresIn)
-    .setIssuedAt()
-    .sign(secret);
+  try {
+    const secret = new TextEncoder().encode(env.JWT_SECRET);
+    const token = await new SignJWT({ user_id: userId, email, role })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuer(env.JWT_ISSUER)
+      .setAudience(env.JWT_AUDIENCE)
+      .setExpirationTime(expiresIn)
+      .setIssuedAt()
+      .sign(secret);
+
+    debugLog("トークン生成成功", { userId, email, expiresIn });
+    return `v1:${token}`; // プレフィックスを付与して返す
+  } catch (error) {
+    errorLog(error instanceof Error ? error : new Error(String(error)), {
+      userId,
+      email,
+    });
+    throw new Error("トークン生成に失敗しました");
+  }
 }
 
-// パスワードハッシュ生成
 export async function hashPassword(
   password: string,
   env: Env
 ): Promise<string> {
   const config = PBKDF2_CONFIG[env.ENVIRONMENT] || PBKDF2_CONFIG.production;
-  const salt = crypto.getRandomValues(new Uint8Array(config.saltLen));
-  const encoder = new TextEncoder();
 
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
+  debugLog("パスワードハッシュ処理開始", {
+    env: env.ENVIRONMENT,
+    config,
+  });
 
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: config.iterations,
-      hash: config.hash,
-    },
-    keyMaterial,
-    config.keyLen * 8
-  );
+  try {
+    const salt = crypto.getRandomValues(new Uint8Array(config.saltLen));
+    const encoder = new TextEncoder();
 
-  const hash = new Uint8Array(derivedBits);
-  const saltB64 = Buffer.from(salt).toString("base64");
-  const hashB64 = Buffer.from(hash).toString("base64");
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(password),
+      "PBKDF2",
+      false,
+      ["deriveBits"]
+    );
 
-  return `${saltB64}:${hashB64}:${config.iterations}:${config.hash}`;
+    const derivedBits = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt,
+        iterations: config.iterations,
+        hash: config.hash,
+      },
+      keyMaterial,
+      config.keyLen * 8
+    );
+
+    const hash = new Uint8Array(derivedBits);
+    const saltB64 = Buffer.from(salt).toString("base64");
+    const hashB64 = Buffer.from(hash).toString("base64");
+
+    const result = `${saltB64}:${hashB64}:${config.iterations}:${config.hash}`;
+    debugLog("パスワードハッシュ生成成功", {
+      result: result.slice(0, 10) + "...",
+    });
+    return result;
+  } catch (error) {
+    errorLog(error instanceof Error ? error : new Error(String(error)));
+    throw new Error("パスワードハッシュ生成に失敗しました");
+  }
 }
 
-// タイミングセーフ比較（Node.jsやCloudflare対応）
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -332,14 +401,18 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-// パスワード検証
 export async function verifyPassword(
   password: string,
   hashedPassword: string
 ): Promise<boolean> {
   try {
+    debugLog("パスワード検証開始", {
+      hashedPassword: hashedPassword.slice(0, 10) + "...",
+    });
+
     const [saltB64, hashB64, iterationsStr, hashAlgStr] =
       hashedPassword.split(":");
+
     if (!saltB64 || !hashB64 || !iterationsStr || !hashAlgStr) {
       throw new Error("Invalid password format");
     }
@@ -369,84 +442,125 @@ export async function verifyPassword(
     );
 
     const actualHash = new Uint8Array(derivedBits);
-    return timingSafeEqual(actualHash, expectedHash);
+    const isValid = timingSafeEqual(actualHash, expectedHash);
+
+    debugLog("パスワード検証結果", { isValid });
+    return isValid;
   } catch (error) {
-    console.error("Password verification error:", error);
+    errorLog(error instanceof Error ? error : new Error(String(error)));
     return false;
   }
 }
 
-// JWT 検証ミドルウェア
 export const jwtMiddleware: MiddlewareHandler<{
   Bindings: Env;
   Variables: {
     jwtPayload?: JwtPayload;
   };
 }> = async (c, next) => {
+  const requestId = Math.random().toString(36).substring(2, 8);
+  const logContext = {
+    requestId,
+    method: c.req.method,
+    path: c.req.path,
+    env: c.env.ENVIRONMENT,
+  };
+
+  debugLog("ミドルウェア開始", logContext);
+
   // 1. Authorization ヘッダーの検証
   const authHeader = c.req.header("Authorization");
+  debugLog("認証ヘッダー確認", {
+    header: authHeader ? `${authHeader.slice(0, 10)}...` : null,
+  });
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!authHeader) {
+    const error = new Error("Authorizationヘッダーが存在しません");
+    errorLog(error, logContext);
     c.status(401);
     c.header("WWW-Authenticate", "Bearer");
-    c.header("X-Content-Type-Options", "nosniff");
     return c.json({
       success: false,
       error: {
-        code: "INVALID_AUTH_HEADER",
-        message: "Authorization: Bearer <token> 形式が必要です",
-        ...(c.env.ENVIRONMENT === "development" && {
-          details: "Missing or malformed Authorization header",
-        }),
+        code: "MISSING_AUTH_HEADER",
+        message: "Authorizationヘッダーが必要です",
       },
     });
   }
 
-  // 2. トークンの抽出と検証
-  const token = authHeader.split(" ")[1];
-
+  // 2. トークンの抽出と正規化
+  let token: string;
   try {
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else if (authHeader.startsWith("v1:")) {
+      token = authHeader;
+    } else {
+      throw new Error("サポートされていない認証形式");
+    }
+
+    // v1:プレフィックスの処理（Cloudflare Workers対応）
+    const normalizedToken = token.startsWith("v1:") ? token.slice(3) : token;
+    debugLog("トークン正規化完了", {
+      original: token.slice(0, 10) + "..." + token.slice(-10),
+      normalized:
+        normalizedToken.slice(0, 10) + "..." + normalizedToken.slice(-10),
+    });
+
+    // 3. トークン検証
+    debugLog("トークン検証開始", logContext);
     const { payload } = await jwtVerify(
-      token,
+      normalizedToken,
       new TextEncoder().encode(c.env.JWT_SECRET),
       {
         issuer: c.env.JWT_ISSUER,
         audience: c.env.JWT_AUDIENCE,
-        clockTolerance: 15,
         algorithms: ["HS256"],
-        maxTokenAge: "2h",
+        clockTolerance: 15, // 15秒の許容誤差
       }
     );
 
-    // 3. ペイロードの必須項目確認
+    debugLog("トークンペイロード", {
+      user_id: payload.user_id,
+      email: payload.email,
+      exp: payload.exp,
+    });
+
+    // 4. ペイロード検証
     if (
       typeof payload.user_id !== "number" ||
       typeof payload.email !== "string"
     ) {
-      throw new Error("JWT payload missing required claims");
+      throw new Error("必須クレームが不足しています");
     }
 
-    // 4. Context にユーザー情報を保存
+    // 5. コンテキストに保存
     c.set("jwtPayload", {
       user_id: payload.user_id,
       email: payload.email,
-      exp: payload.exp ?? Math.floor(Date.now() / 1000) + 7200,
+      exp: payload.exp,
     });
 
+    debugLog("認証成功", { user_id: payload.user_id });
     await next();
+    debugLog("ミドルウェア完了", logContext);
   } catch (error) {
-    //  5. 認証エラー時のレスポンス
-    c.status(401);
-    c.header("Cache-Control", "no-store");
-    c.header("X-Content-Type-Options", "nosniff");
+    const err = error instanceof Error ? error : new Error(String(error));
+    errorLog(err, {
+      ...logContext,
+      token: token
+        ? token.slice(0, 10) + "..." + token.slice(-10)
+        : "undefined",
+    });
 
+    c.status(401);
     return c.json({
       success: false,
       error: {
         code: "AUTH_FAILURE",
         message: "認証に失敗しました",
         ...(c.env.ENVIRONMENT === "development" && {
-          details: error instanceof Error ? error.message : "Unknown error",
+          details: err.message,
         }),
       },
     });
@@ -564,7 +678,12 @@ export const registerHandler = async (
 ```typescript
 // backend/src/endpoints/auth/login.ts
 import { Context } from "hono";
-import { Bindings, ErrorResponse, SuccessResponse } from "../../types/types";
+import {
+  Bindings,
+  ErrorResponse,
+  LoginResponseData,
+  SuccessResponse,
+} from "../../types/types";
 import { generateAuthToken, verifyPassword } from "../../lib/auth";
 import { z } from "zod";
 
@@ -634,7 +753,12 @@ export const loginHandler = async (
     }
 
     // トークン生成（JWTのみ）
-    const token = await generateAuthToken(c.env, user.id, user.email);
+    const token = await generateAuthToken(
+      c.env,
+      user.id,
+      user.email,
+      user.role
+    );
 
     // レスポンスでJWTとユーザー情報を返す
     return c.json(
@@ -648,7 +772,7 @@ export const loginHandler = async (
             role: user.role,
           },
         },
-      } satisfies SuccessResponse,
+      } satisfies SuccessResponse<LoginResponseData>,
       200
     );
   } catch (error) {
@@ -671,7 +795,7 @@ export const loginHandler = async (
 `backend/src/endpoints/auth/logout.ts`:
 
 ```typescript
-//backend/src/endpoints/auth/logout.ts
+// backend/src/endpoints/auth/logout.ts
 import { Context } from "hono";
 import { Bindings, ErrorResponse, SuccessResponse } from "../../types/types";
 
@@ -680,27 +804,102 @@ export const logoutHandler = async (
 ): Promise<Response> => {
   try {
     const authHeader = c.req.header("Authorization");
-    const sessionToken = authHeader?.split(" ")[1];
 
-    if (sessionToken) {
-      // セッション削除
-      await c.env.DB.prepare("DELETE FROM sessions WHERE session_token = ?")
-        .bind(sessionToken)
-        .run();
+    // Authorizationヘッダが完全に存在しない場合のチェックを追加
+    if (!authHeader) {
+      c.status(401);
+      c.header("WWW-Authenticate", "Bearer");
+      c.header("X-Content-Type-Options", "nosniff");
+      return c.json({
+        error: {
+          code: "MISSING_AUTH_HEADER",
+          message: "Authorizationヘッダーが必要です",
+          ...(c.env.ENVIRONMENT === "development" && {
+            meta: {
+              errorMessage: "Authorization header is missing",
+            },
+          }),
+        },
+      } satisfies ErrorResponse);
     }
 
-    return c.json({ data: { success: true } } satisfies SuccessResponse, 200);
-  } catch (error) {
-    console.error("Logout error:", error);
+    // Authorizationヘッダの形式チェック
+    if (!authHeader.startsWith("Bearer ")) {
+      c.status(401);
+      c.header("WWW-Authenticate", "Bearer");
+      c.header("X-Content-Type-Options", "nosniff");
+      return c.json({
+        error: {
+          code: "INVALID_AUTH_HEADER",
+          message: "Authorization: Bearer <token> 形式が必要です",
+          ...(c.env.ENVIRONMENT === "development" && {
+            meta: {
+              errorMessage: "Malformed Authorization header",
+            },
+          }),
+        },
+      } satisfies ErrorResponse);
+    }
+
+    const sessionToken = authHeader.split(" ")[1];
+
+    // jwtPayloadがない、または不正な場合は 401 を返す
+    const jwtPayload = c.get("jwtPayload");
+    if (!jwtPayload || typeof jwtPayload !== "object") {
+      c.status(401);
+      c.header("WWW-Authenticate", 'Bearer error="invalid_token"');
+      c.header("X-Content-Type-Options", "nosniff");
+      return c.json({
+        error: {
+          code: "INVALID_TOKEN",
+          message: "無効なアクセストークンです",
+          ...(c.env.ENVIRONMENT === "development" && {
+            meta: {
+              errorMessage: "JWT payload is missing or invalid",
+            },
+          }),
+        },
+      } satisfies ErrorResponse);
+    }
+
+    // セッション削除処理
+    const result = await c.env.DB.prepare(
+      "DELETE FROM sessions WHERE session_token = ?"
+    )
+      .bind(sessionToken)
+      .run();
+
+    if (!result.success) {
+      throw new Error("Failed to delete session");
+    }
+
+    // セッション管理のための追加ヘッダー
+    c.header("Cache-Control", "no-store");
+    c.header("Pragma", "no-cache");
+
     return c.json(
       {
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "ログアウト処理に失敗しました",
-        },
-      } satisfies ErrorResponse,
-      500
+        data: { success: true },
+      } satisfies SuccessResponse<{ success: boolean }>,
+      200
     );
+  } catch (error) {
+    console.error("Logout error:", error);
+    c.status(500);
+    c.header("Cache-Control", "no-store");
+    c.header("X-Content-Type-Options", "nosniff");
+    return c.json({
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "ログアウト処理に失敗しました",
+        ...(c.env.ENVIRONMENT === "development" && {
+          meta: {
+            errorMessage:
+              error instanceof Error ? error.message : "Unknown error",
+          },
+        }),
+      },
+    } satisfies ErrorResponse);
   }
 };
 ```
@@ -794,7 +993,7 @@ export const getUserHandler = async (
 完全版
 
 ```typescript
-//backend/src/routes/index.ts
+// backend/src/routes/index.ts
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Bindings, Variables } from "../types/types";
@@ -807,94 +1006,111 @@ import { registerHandler } from "../endpoints/auth/register";
 import { loginHandler } from "../endpoints/auth/login";
 import { logoutHandler } from "../endpoints/auth/logout";
 import { getUserHandler } from "../endpoints/auth/getUser";
+//import { getSessionsHandler } from "../endpoints/auth/getSessionsHandler";
+//import { changePasswordHandler } from "../endpoints/auth/changePassword";
 
 const app = new Hono<{
   Bindings: Bindings;
   Variables: Variables;
 }>();
 
-// =====================
-// Global Middlewares
-// =====================
-app.use(
-  "*",
-  cors({
-    origin: "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "X-Session-ID"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: 86400,
-  })
-);
-
-// =====================
-// Authentication Middleware
-// =====================
-app.use("/api/cart/*", jwtMiddleware);
-app.use("/api/products/*", async (c, next) => {
-  if (["POST", "PUT", "DELETE"].includes(c.req.method)) {
-    return jwtMiddleware(c, next);
-  }
+// 変更点1: ログ出力を構造化
+app.use("*", async (c, next) => {
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      method: c.req.method,
+      path: c.req.path,
+      ip: c.req.header("CF-Connecting-IP"),
+    })
+  );
   await next();
 });
 
-// =====================
-// API Routes
-// =====================
-
-// User API
-app
-  .post("/api/register", registerHandler)
-  .post("/api/login", loginHandler)
-  .post("/api/logout", logoutHandler)
-  .get("/api/users/me", jwtMiddleware, getUserHandler);
-
-// Product API
-app
-  .post("/api/products", productPostHandler)
-  .get("/api/products", productGetHandler)
-  .get("/api/products/:id", productGetByIdHandler)
-  .options("/api/products", (c) => {
-    return c.body(null, 204); // 204 No Contentを返す
-  });
-
-// Cart API
-app
-  .get("/api/cart", getCartHandler)
-  .post("/api/cart" /* cartPostHandler */)
-  .delete("/api/cart/:productId" /* cartDeleteHandler */);
-
-// =====================
-// System Routes
-// =====================
-app.get("/health", (c) =>
-  c.json({
-    status: "healthy",
-    environment: c.env.ENVIRONMENT,
-  })
-);
-
-// =====================
-// Error Handling
-// =====================
-app.notFound((c) => {
-  return c.json({ message: "Route Not Found" }, 404);
+// 変更点2: セキュリティヘッダー追加ミドルウェア
+app.use("*", async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
 });
 
+// ヘルスチェック（変更なし）
+app.get("/health", (c) => c.json({ status: "ok" }));
+
+// APIルート (ベースパス /api)（変更なし）
+const apiRoutes = app.basePath("/api");
+
+// CORS設定（オリジン制限を環境変数から取得するよう変更）
+apiRoutes.use("*", async (c, next) => {
+  const corsMiddleware = cors({
+    origin:
+      c.env.ENVIRONMENT === "production"
+        ? [
+            "https://kaikyou-online-shop.onrender.com",
+            "https://kaikyou-online-shop.vercel.app",
+            "http://localhost:3000",
+          ]
+        : [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:8787",
+            "http://127.0.0.1:8787",
+          ],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 86400,
+    credentials: true,
+  });
+  return corsMiddleware(c, next);
+});
+
+// 認証不要ルート（グループ化コメント追加）
+// === 公開エンドポイント ===
+apiRoutes.post("/register", registerHandler);
+apiRoutes.post("/login", loginHandler);
+apiRoutes.get("/products", productGetHandler);
+apiRoutes.get("/products/:id", productGetByIdHandler);
+
+// 認証必須ルート（型安全性向上）
+const protectedRoutes = apiRoutes.use("*", jwtMiddleware);
+// === 保護対象エンドポイント ===
+protectedRoutes.post("/logout", logoutHandler);
+protectedRoutes.get("/users/me", getUserHandler);
+protectedRoutes.post("/products", productPostHandler);
+protectedRoutes.get("/cart", getCartHandler);
+//protectedRoutes.get("/sessions", getSessionsHandler);
+//protectedRoutes.put("/users/change-password", changePasswordHandler);
+
+// エラーハンドリング（詳細情報追加）
+app.notFound((c) =>
+  c.json(
+    {
+      error: "Not Found",
+      path: c.req.path,
+      method: c.req.method,
+    },
+    404
+  )
+);
+
 app.onError((err, c) => {
-  console.error(`[${new Date().toISOString()}] Error:`, err);
+  console.error("Error:", {
+    message: err.message,
+    stack: err.stack,
+    url: c.req.url,
+  });
+  const headers = c.req.raw.headers; // 生のHeadersオブジェクト
+  const requestId = headers.get("X-Request-ID");
   return c.json(
     {
-      error: {
-        message: "Internal Server Error",
-        details:
-          c.env.ENVIRONMENT === "development"
-            ? {
-                error: err.message,
-                stack: err.stack,
-              }
-            : undefined,
-      },
+      error: "Internal Server Error",
+      requestId: requestId,
+      ...(c.env.ENVIRONMENT === "development" && {
+        details: err.message,
+        stack: err.stack,
+      }),
     },
     500
   );
@@ -914,44 +1130,62 @@ export default app;
   "main": "src/worker.ts",
   "compatibility_date": "2025-04-18",
 
-  // ====================
-  // ✅ Cloudflare D1 データベース設定
-  // ====================
-  "d1_databases": [
+  // 共通設定
+  "kv_namespaces": [
     {
-      "binding": "DB",
-      "database_name": "shopping-db",
-      "database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973",
-      "preview_database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973" // 追加
+      "binding": "TEST_NAMESPACE",
+      "id": "test-namespace-id",
+      "preview_id": "test-namespace-id"
     }
   ],
 
-  // ====================
-  // ✅ Cloudflare R2 バケット設定 （開発用）
-  // ====================
-  "r2_buckets": [
-    {
-      "binding": "R2_BUCKET",
-      "bucket_name": "dev-bucket",
-      "preview_bucket_name": "preview-bucket"
-    }
-  ],
-
-  // ====================
-  // ✅ 環境変数（開発用）
-  // ====================
-  "vars": {
-    "JWT_SECRET": "local_dev_secret_do_not_use_in_prod",
-    "JWT_ISSUER": "kaikyou-shop-dev",
-    "JWT_AUDIENCE": "kaikyou-shop-users-dev",
-    "ENVIRONMENT": "development",
-    "R2_PUBLIC_DOMAIN": "localhost:8787/assets"
-  },
-
-  // ====================
-  // ✅ 本番環境設定
-  // ====================
   "env": {
+    "development": {
+      "vars": {
+        "JWT_SECRET": "local_dev_secret_do_not_use_in_prod",
+        "JWT_ISSUER": "kaikyou-shop-dev",
+        "JWT_AUDIENCE": "kaikyou-shop-users-dev",
+        "ENVIRONMENT": "development",
+        "R2_PUBLIC_DOMAIN": "localhost:8787/assets"
+      },
+      "r2_buckets": [
+        {
+          "binding": "R2_BUCKET",
+          "bucket_name": "dev-bucket",
+          "preview_bucket_name": "dev-bucket"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "shopping-db",
+          "database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973",
+          "preview_database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973"
+        }
+      ]
+    },
+    "preview": {
+      "vars": {
+        "JWT_SECRET": "local_preview_secret_do_not_use_in_prod",
+        "JWT_ISSUER": "kaikyou-shop-preview",
+        "JWT_AUDIENCE": "kaikyou-shop-users-preview",
+        "ENVIRONMENT": "preview",
+        "R2_PUBLIC_DOMAIN": "preview-assets.example.com"
+      },
+      "r2_buckets": [
+        {
+          "binding": "R2_BUCKET",
+          "bucket_name": "preview-bucket"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "shopping-db",
+          "database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973"
+        }
+      ]
+    },
     "production": {
       "vars": {
         "JWT_SECRET": "{{ JWT_SECRET_PRODUCTION }}",
@@ -966,7 +1200,6 @@ export default app;
           "bucket_name": "production-bucket"
         }
       ],
-      // 本番用D1設定（必要に応じて追加）
       "d1_databases": [
         {
           "binding": "DB",
@@ -975,7 +1208,31 @@ export default app;
         }
       ]
     }
-  }
+  },
+
+  // デフォルト設定
+  "vars": {
+    "JWT_SECRET": "local_dev_secret_do_not_use_in_prod",
+    "JWT_ISSUER": "kaikyou-shop-dev",
+    "JWT_AUDIENCE": "kaikyou-shop-users-dev",
+    "ENVIRONMENT": "development",
+    "R2_PUBLIC_DOMAIN": "localhost:8787/assets"
+  },
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "dev-bucket",
+      "preview_bucket_name": "preview-bucket"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shopping-db",
+      "database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973",
+      "preview_database_id": "d53ad56f-f646-44dc-8dbf-3d2d15d76973"
+    }
+  ]
 }
 ```
 

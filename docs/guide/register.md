@@ -3,6 +3,7 @@
 frontend\app\register\page.tsx
 
 ```ts
+// frontend/app/register/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -28,6 +29,7 @@ export default function RegisterPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, name, password }),
+          credentials: "include", // Cookieを受け取るために追加
         }
       );
 
@@ -108,3 +110,22 @@ export default function RegisterPage() {
   );
 }
 ```
+
+### 登録テスト
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User", "username":"test", "email":"test@example.com", "password":"password123"}'
+
+```
+
+windows 版
+
+```bash
+curl.exe -X POST http://127.0.0.1:8787/api/register `
+  -H "Content-Type: application/json" `
+  -d '{\"name\":\"Test User\", \"username\":\"test\", \"email\":\"test@example.com\", \"password\":\"password123\"}'
+```
+
+![alt text](image-29.png)
