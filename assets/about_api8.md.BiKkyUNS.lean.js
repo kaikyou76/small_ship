@@ -1,1 +1,0 @@
-import{_ as i,c as a,o as n,ae as h}from"./chunks/framework.4ukD4ZLJ.js";const D=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"about/api8.md","filePath":"about/api8.md"}'),k={name:"about/api8.md"};function l(t,s,p,F,e,r){return n(),a("div",null,s[0]||(s[0]=[h("",31)]))}const y=i(k,[["render",l]]);export{D as __pageData,y as default};

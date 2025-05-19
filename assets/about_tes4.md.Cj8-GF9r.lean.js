@@ -1,1 +1,0 @@
-import{_ as a,c as r,o as e,ae as o}from"./chunks/framework.4ukD4ZLJ.js";const p=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"about/tes4.md","filePath":"about/tes4.md"}'),s={name:"about/tes4.md"};function l(i,t,n,d,h,c){return e(),r("div",null,t[0]||(t[0]=[o("",16)]))}const b=a(s,[["render",l]]);export{p as __pageData,b as default};

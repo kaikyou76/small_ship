@@ -1,1 +1,0 @@
-import{_ as i,c as a,o as t,ae as n}from"./chunks/framework.4ukD4ZLJ.js";const D=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"guide/tools.md","filePath":"guide/tools.md"}'),h={name:"guide/tools.md"};function l(k,s,p,e,r,F){return t(),a("div",null,s[0]||(s[0]=[n("",36)]))}const o=i(h,[["render",l]]);export{D as __pageData,o as default};

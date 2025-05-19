@@ -1,1 +1,0 @@
-import{_ as i,c as a,o as n,ae as t}from"./chunks/framework.4ukD4ZLJ.js";const D=JSON.parse('{"title":"型定義","description":"","frontmatter":{},"headers":[],"relativePath":"coment/type.md","filePath":"coment/type.md"}'),h={name:"coment/type.md"};function l(k,s,p,e,r,F){return n(),a("div",null,s[0]||(s[0]=[t("",50)]))}const g=i(h,[["render",l]]);export{D as __pageData,g as default};
