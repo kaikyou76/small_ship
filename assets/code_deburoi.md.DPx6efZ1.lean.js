@@ -1,0 +1,1 @@
+import{_ as i,c as a,o as t,ae as e}from"./chunks/framework.4ukD4ZLJ.js";const c=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"code/deburoi.md","filePath":"code/deburoi.md"}'),l={name:"code/deburoi.md"};function n(h,s,p,k,r,o){return t(),a("div",null,s[0]||(s[0]=[e("",57)]))}const g=i(l,[["render",n]]);export{c as __pageData,g as default};
