@@ -310,130 +310,142 @@ my-shop/
 | `next.config.js`        | Next.js 設定ファイル                         |
 
 2. 首页（展示商品列表）
-   tsx
-   コピーする
-   編集する
-   // pages/index.tsx
-   import React, { useEffect, useState } from 'react';
-   import { getProducts } from '../utils/api'; // 数据请求工具
+
+```tsx
+// pages/index.tsx
+import React, { useEffect, useState } from "react";
+import { getProducts } from "../utils/api"; // 数据请求工具
 
 const Home = () => {
-const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState([]);
 
-useEffect(() => {
-const fetchProducts = async () => {
-const data = await getProducts();
-setProducts(data);
-};
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const data = await getProducts();
+      setProducts(data);
+    };
 
     fetchProducts();
+  }, []);
 
-}, []);
-
-return (
-<div>
-<h1>Welcome to Our Shop</h1>
-<div className="product-list">
-{products.map((product) => (
-<div key={product.id} className="product-card">
-<img src={product.image} alt={product.name} />
-<h2>{product.name}</h2>
-<p>{product.price}</p>
-<button>Add to Cart</button>
-</div>
-))}
-</div>
-</div>
-);
+  return (
+    <div>
+      <h1>Welcome to Our Shop</h1>
+      <div className="product-list">
+        {products.map((product) => (
+          <div key={product.id} className="product-card">
+            <img src={product.image} alt={product.name} />
+            <h2>{product.name}</h2>
+            <p>{product.price}</p>
+            <button>Add to Cart</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-export default Home; 3. 商品详情页
-tsx
-コピーする
-編集する
+export default Home;
+```
+
+3. 商品详情页
+
+```tsx
+コピーする;
+編集する;
 // pages/product/[id].tsx
-import { useRouter } from 'next/router';
-import React, { useEffect, useState } from 'react';
-import { getProductById } from '../../utils/api'; // 数据请求工具
+import { useRouter } from "next/router";
+import React, { useEffect, useState } from "react";
+import { getProductById } from "../../utils/api"; // 数据请求工具
 
 const ProductDetail = () => {
-const { query } = useRouter();
-const [product, setProduct] = useState(null);
+  const { query } = useRouter();
+  const [product, setProduct] = useState(null);
 
-useEffect(() => {
-if (query.id) {
-const fetchProduct = async () => {
-const data = await getProductById(query.id);
-setProduct(data);
-};
+  useEffect(() => {
+    if (query.id) {
+      const fetchProduct = async () => {
+        const data = await getProductById(query.id);
+        setProduct(data);
+      };
 
       fetchProduct();
     }
+  }, [query.id]);
 
-}, [query.id]);
+  if (!product) return <div>Loading...</div>;
 
-if (!product) return <div>Loading...</div>;
-
-return (
-<div>
-<h1>{product.name}</h1>
-<img src={product.image} alt={product.name} />
-<p>{product.price}</p>
-<button>Add to Cart</button>
-</div>
-);
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <img src={product.image} alt={product.name} />
+      <p>{product.price}</p>
+      <button>Add to Cart</button>
+    </div>
+  );
 };
 
-export default ProductDetail; 4. 购物车页面
-tsx
-コピーする
-編集する
+export default ProductDetail;
+```
+
+4.  购物车页面
+
+```tsx
+コピーする;
+編集する;
 // pages/cart.tsx
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 const Cart = () => {
-const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState([]);
 
-// 模拟添加商品到购物车
-const addToCart = (product) => {
-setCart([...cart, product]);
+  // 模拟添加商品到购物车
+  const addToCart = (product) => {
+    setCart([...cart, product]);
+  };
+
+  return (
+    <div>
+      <h1>Your Cart</h1>
+      <div className="cart-items">
+        {cart.map((item, index) => (
+          <div key={index} className="cart-item">
+            <img src={item.image} alt={item.name} />
+            <p>{item.name}</p>
+            <p>{item.price}</p>
+          </div>
+        ))}
+      </div>
+      <button>Proceed to Checkout</button>
+    </div>
+  );
 };
 
-return (
-<div>
-<h1>Your Cart</h1>
-<div className="cart-items">
-{cart.map((item, index) => (
-<div key={index} className="cart-item">
-<img src={item.image} alt={item.name} />
-<p>{item.name}</p>
-<p>{item.price}</p>
-</div>
-))}
-</div>
-<button>Proceed to Checkout</button>
-</div>
-);
-};
+export default Cart;
+```
 
-export default Cart; 5. 商品数据获取与 API（工具函数）
-ts
-コピーする
-編集する
+5. 商品数据获取与 API（工具函数）
+
+```ts
+コピーする;
+編集する;
 // utils/api.ts
 export const getProducts = async () => {
-// 假设从 Cloudflare D1 获取数据
-const res = await fetch('/api/products');
-const data = await res.json();
-return data;
+  // 假设从 Cloudflare D1 获取数据
+  const res = await fetch("/api/products");
+  const data = await res.json();
+  return data;
 };
 
 export const getProductById = async (id: string) => {
-const res = await fetch(`/api/product/${id}`);
-const data = await res.json();
-return data;
-}; 6. 部署到 Vercel
-只需要连接你的 GitHub 仓库到 Vercel
+  const res = await fetch(`/api/product/${id}`);
+  const data = await res.json();
+  return data;
+};
+```
+
+6. 部署到 Vercel
+   只需要连接你的 GitHub 仓库到 Vercel
 
 配置环境变量（例如 Cloudflare D1 的数据库链接）
 

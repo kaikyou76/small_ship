@@ -1,6 +1,6 @@
 # 1. 🔐 認証系 API 開発
 
-### 準備 → 管理者権限を指定ユーザーに付与
+### 準備 1 → 管理者権限を指定ユーザーに付与
 
 ```bash
 npx wrangler d1 execute shopping-db --remote --command="select * from users"
@@ -17,6 +17,71 @@ npx wrangler d1 execute shopping-db --remote --command="select * from users"
 ```
 
 ![alt text](image-39.png)
+
+### 準備 2 → sessions テーブル役割の変更
+
+`Cloudflare Workers での sessions 認証が失敗したため、sessions テーブルの役割を調整しました。`
+
+- sessions テーブルに jwt_token カラムを追加（既存の構造を保持）
+
+Cloudflare D1 は **SQLite ベース**なので、以下のような **生の SQL** を使います。
+
+### 🔧 カラム追加（`jwt_token`）
+
+```bash
+# remote 環境でカラム追加
+npx wrangler d1 execute shopping-db --remote --command="ALTER TABLE sessions ADD COLUMN jwt_token TEXT;"
+
+# local 環境でカラム追加
+npx wrangler d1 execute shopping-db --local --command="ALTER TABLE sessions ADD COLUMN jwt_token TEXT;"
+```
+
+### 🧱 インデックス追加（ユニーク制約付き）
+
+```bash
+# remote 環境でインデックス追加
+npx wrangler d1 execute shopping-db --remote --command="CREATE UNIQUE INDEX idx_sessions_jwt_token ON sessions(jwt_token);"
+
+# local 環境でインデックス追加
+npx wrangler d1 execute shopping-db --local --command="CREATE UNIQUE INDEX idx_sessions_jwt_token ON sessions(jwt_token);"
+```
+
+---
+
+✅ 最終的な sessions テーブル構造（Rails マイグレーション適用後）
+
+```sql
+CREATE TABLE sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  session_token TEXT NOT NULL UNIQUE,
+  jwt_token TEXT UNIQUE, -- ✅ JWTを保存する新カラム
+  expires_at DATETIME NOT NULL,
+  user_agent TEXT,
+  ip_address TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+```
+
+## 🧠 補足：確認方法
+
+- カラムの存在を確認したい場合：
+
+  ```bash
+  npx wrangler d1 execute shopping-db --remote --command="PRAGMA table_info(sessions);"
+  npx wrangler d1 execute shopping-db --local --command="PRAGMA table_info(sessions);"
+  ```
+
+- 追加されたインデックス確認：
+
+  ```bash
+  npx wrangler d1 execute shopping-db --remote --command="PRAGMA index_list('sessions');"
+  npx wrangler d1 execute shopping-db --local --command="PRAGMA index_list('sessions');"
+  ```
+
+---
 
 Next.js と Cloudflare Workers/D1 を使用した認証 API の実装を以下に示します。まず、必要なエンドポイントを実装する前に、認証関連のユーティリティ関数を準備します。
 

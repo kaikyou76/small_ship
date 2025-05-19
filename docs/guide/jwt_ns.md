@@ -667,6 +667,326 @@ export const useAuth = () => {
    - 認証状態の更新をより確実に行うため、setIsLoggedIn(true)を明示的に呼び出す
    - ストレージイベントを監視して、ログイン状態の変化を即時反映
 
+# 更に完全修正版 `frontend/components/AuthProvider.tsx`
+
+以下は、認証エラーを解決するための統合改良版のコードです。主な改善点はトークン管理の信頼性向上とエラーハンドリングの強化です。
+
+```typescript
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+  useRef,
+} from "react";
+import { useRouter } from "next/navigation";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface AuthContextType {
+  isLoggedIn: boolean;
+  isLoading: boolean;
+  currentUser: User | null;
+  error: string | null;
+  clearAuth: () => void;
+  checkAuth: () => Promise<void>;
+  logout: () => Promise<void>;
+  getToken: () => Promise<string | null>;
+  getTokenSync: () => string | null;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [authState, setAuthState] = useState<{
+    isLoggedIn: boolean;
+    isLoading: boolean;
+    currentUser: User | null;
+    error: string | null;
+  }>({
+    isLoggedIn: false,
+    isLoading: true,
+    currentUser: null,
+    error: null,
+  });
+
+  const router = useRouter();
+  const authCheckRef = useRef<Promise<void> | null>(null);
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!apiUrl) throw new Error("APIエンドポイントが設定されていません");
+
+  const clearAuth = useCallback(() => {
+    localStorage.removeItem("jwtToken");
+    localStorage.removeItem("user");
+    setAuthState({
+      isLoggedIn: false,
+      isLoading: false,
+      currentUser: null,
+      error: null,
+    });
+  }, []);
+
+  // 同期版トークン取得
+  const getTokenSync = useCallback((): string | null => {
+    const token = localStorage.getItem("jwtToken");
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        clearAuth();
+        return null;
+      }
+      return token;
+    } catch (error) {
+      console.error("トークン解析エラー:", error);
+      return null;
+    }
+  }, [clearAuth]);
+
+  // 非同期版トークン取得
+  const getToken = useCallback(async (): Promise<string | null> => {
+    return getTokenSync();
+  }, [getTokenSync]);
+
+  const checkAuth = useCallback(
+    async (initialCheck = false): Promise<void> => {
+      if (authCheckRef.current) {
+        return authCheckRef.current;
+      }
+
+      setAuthState((prev) => ({ ...prev, isLoading: true }));
+
+      const authCheckPromise = (async () => {
+        try {
+          const token = getTokenSync();
+          const storedUser = localStorage.getItem("user");
+
+          if (!token || !storedUser) {
+            throw new Error("認証情報がありません");
+          }
+
+          const response = await fetch(`${apiUrl}/api/users/me`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error(`認証失敗: ${response.status}`);
+          }
+
+          const userData = await response.json();
+          localStorage.setItem("user", JSON.stringify(userData));
+
+          setAuthState({
+            isLoggedIn: true,
+            isLoading: false,
+            currentUser: userData,
+            error: null,
+          });
+
+          if (
+            initialCheck &&
+            ["/login", "/register"].includes(window.location.pathname)
+          ) {
+            router.push("/");
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "認証エラー";
+          setAuthState({
+            isLoggedIn: false,
+            isLoading: false,
+            currentUser: null,
+            error: errorMessage,
+          });
+
+          if (
+            initialCheck &&
+            !["/login", "/register"].includes(window.location.pathname)
+          ) {
+            router.push("/login");
+          }
+        } finally {
+          authCheckRef.current = null;
+        }
+      })();
+
+      authCheckRef.current = authCheckPromise;
+      return authCheckPromise;
+    },
+    [apiUrl, clearAuth, router, getTokenSync]
+  );
+
+  const logout = useCallback(async () => {
+    setAuthState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      const token = getTokenSync();
+      if (!token) {
+        console.warn("ローカルクリアのみ実行");
+        clearAuth();
+        router.push("/login");
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/logout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok && response.status !== 401) {
+        throw new Error(`ログアウト失敗: ${response.status}`);
+      }
+
+      clearAuth();
+      router.push("/login");
+    } catch (error) {
+      console.error("ログアウトエラー:", error);
+      clearAuth();
+      router.push("/login");
+    } finally {
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+    }
+  }, [apiUrl, clearAuth, router, getTokenSync]);
+
+  // トークン自動更新チェック
+  useEffect(() => {
+    if (!authState.isLoggedIn) return;
+
+    const checkTokenRefresh = () => {
+      const token = getTokenSync();
+      if (!token) return;
+
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const remainingTime = payload.exp * 1000 - Date.now();
+
+        if (remainingTime < 5 * 60 * 1000) {
+          // 有効期限5分前
+          console.log("トークン更新が必要です");
+          // ここでトークン更新APIを呼び出す
+        }
+      } catch (error) {
+        console.error("トークン更新チェックエラー:", error);
+      }
+    };
+
+    const interval = setInterval(checkTokenRefresh, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [authState.isLoggedIn, getTokenSync]);
+
+  // 初期認証チェック
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      await checkAuth(true);
+    };
+
+    if (mounted) {
+      initializeAuth();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [checkAuth]);
+
+  // ストレージイベント監視
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "jwtToken" || e.key === "user") {
+        checkAuth();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [checkAuth]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        isLoggedIn: authState.isLoggedIn,
+        isLoading: authState.isLoading,
+        currentUser: authState.currentUser,
+        error: authState.error,
+        clearAuth,
+        checkAuth,
+        logout,
+        getToken,
+        getTokenSync,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+```
+
+### 主な改良点
+
+1. **状態管理の一元化**
+
+   - `authState`オブジェクトで認証状態を一元管理
+   - エラー状態も明示的に管理
+
+2. **トークン管理の強化**
+
+   - `getTokenSync()`同期関数を追加（コンポーネント初期化時にも使用可能）
+   - `getToken()`は非同期だが内部的に同期版を使用
+
+3. **競合状態の防止**
+
+   - `authCheckRef`を使用して重複認証チェックを防止
+
+4. **トークン自動更新**
+
+   - 有効期限切れ前に自動更新チェックを実装
+
+5. **型安全性の向上**
+
+   - コンテキスト型に`getTokenSync`と`error`を追加
+
+6. **エラーハンドリング**
+   - すべての API 呼び出しに一貫したエラーハンドリングを実装
+
+この改良版では、特に以下のエラーケースを適切に処理できます：
+
+- トークンがない場合
+- トークンが無効/期限切れの場合
+- ネットワークエラー
+- API レスポンスエラー
+- 競合状態による不整合
+
+MemberCenter コンポーネントでは、`getTokenSync()`を使って初期レンダリング時に確実にトークンをチェックできるようになります。また、認証状態が一元管理されるため、UI と状態の不整合が起きにくくなります。
+
 ### 追加のテスト手順
 
 1. **ログイン後のリダイレクトテスト**:

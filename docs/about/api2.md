@@ -1,57 +1,12 @@
-了解しました。ユーザー管理 API を開発します。以下の実装では、管理者権限チェックや本人確認などのセキュリティ対策を含めます。
+ユーザー管理 API を開発します。以下の実装では、管理者権限チェックや本人確認などのセキュリティ対策を含めます。
 
-### 1. 共通ミドルウェアの作成
+### 1. ユーザー情報取得 API (`GET /users/:id`)
 
-まず、管理者権限チェック用のミドルウェアを作成します。
+backend/src/routes/index.ts
 
-`backend/src/middleware/adminCheck.ts`:
+`import { getUserByIdHandler } from "../endpoints/users/getUserById"; // 追加`
 
-```typescript
-import { MiddlewareHandler } from "hono";
-import { Env, JwtPayload } from "../types/types";
-
-export const adminMiddleware: MiddlewareHandler<{
-  Bindings: Env;
-  Variables: {
-    jwtPayload?: JwtPayload;
-  };
-}> = async (c, next) => {
-  const payload = c.get("jwtPayload");
-
-  if (!payload) {
-    return c.json(
-      {
-        error: {
-          code: "UNAUTHORIZED",
-          message: "認証が必要です",
-        },
-      },
-      401
-    );
-  }
-
-  // ユーザーのroleを取得
-  const user = await c.env.DB.prepare("SELECT role FROM users WHERE id = ?")
-    .bind(payload.user_id)
-    .first<{ role: string }>();
-
-  if (!user || user.role !== "admin") {
-    return c.json(
-      {
-        error: {
-          code: "FORBIDDEN",
-          message: "管理者権限が必要です",
-        },
-      },
-      403
-    );
-  }
-
-  await next();
-};
-```
-
-### 2. ユーザー情報取得 API (`GET /users/:id`)
+`protectedRoutes.get("/users/:id", getUserByIdHandler);// 追加`
 
 `backend/src/endpoints/users/getUserById.ts`:
 
@@ -159,7 +114,13 @@ export const getUserByIdHandler = async (
 };
 ```
 
-### 3. 全ユーザー一覧取得 API (`GET /users`) - 管理者用
+### 2. 全ユーザー一覧取得 API (`GET /users`) - 管理者用
+
+backend/src/routes/index.ts
+
+`import { getUsersHandler } from "../endpoints/users/getUsers"; // 追加`
+
+`protectedRoutes.get("/users", getUsersHandler);// 追加`
 
 `backend/src/endpoints/users/getUsers.ts`:
 
@@ -236,7 +197,13 @@ export const getUsersHandler = async (
 };
 ```
 
-### 4. ユーザー情報更新 API (`PUT /users/:id`)
+### 3. ユーザー情報更新 API (`PUT /users/:id`)
+
+backend/src/routes/index.ts
+
+`import { updateUserHandler } from "../endpoints/users/updateUser"; // 追加`
+
+`protectedRoutes.put("/users/:id", updateUserHandler);// 追加`
 
 `backend/src/endpoints/users/updateUser.ts`:
 
@@ -416,7 +383,11 @@ export const updateUserHandler = async (
 };
 ```
 
-### 5. ユーザー削除 API (`DELETE /users/:id`)
+### 4. ユーザー削除 API (`DELETE /users/:id`)
+
+`import { deleteUserHandler } from "../endpoints/users/deleteUser"; // 追加`
+
+`protectedRoutes.delete("/users/:id", deleteUserHandler); // 追加`
 
 `backend/src/endpoints/users/deleteUser.ts`:
 
@@ -538,30 +509,7 @@ export const deleteUserHandler = async (
 };
 ```
 
-### 6. ルートにユーザー管理 API を追加
-
-`backend/src/routes/index.ts` を更新:
-
-```typescript
-// ... 既存のインポート ...
-import { getUserByIdHandler } from "endpoints/users/getUserById";
-import { getUsersHandler } from "endpoints/users/getUsers";
-import { updateUserHandler } from "endpoints/users/updateUser";
-import { deleteUserHandler } from "endpoints/users/deleteUser";
-
-// ... 既存のルート定義 ...
-
-// =====================
-// User Management Routes
-// =====================
-app
-  .get("/api/users/:id", jwtMiddleware, getUserByIdHandler)
-  .get("/api/users", jwtMiddleware, adminMiddleware, getUsersHandler)
-  .put("/api/users/:id", jwtMiddleware, updateUserHandler)
-  .delete("/api/users/:id", jwtMiddleware, adminMiddleware, deleteUserHandler);
-```
-
-### 7. 動作確認
+### 6. 動作確認
 
 #### ユーザー情報取得 (管理者または本人のみ)
 

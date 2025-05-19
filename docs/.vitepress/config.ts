@@ -81,12 +81,35 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: "商品一覧", link: "/guide/pr_list" },
-            { text: "ナビゲーション", link: "/guide/nb" },
+            { text: "ナビゲーション1.0", link: "/guide/nb" },
+            { text: "ナビゲーション2.0", link: "/guide/nb2" },
             { text: "登録", link: "/guide/register" },
             { text: "ログイン", link: "/guide/login" },
             { text: "JWT認証開発", link: "/guide/jwt_ns" },
-            { text: "グローバル状態管理", link: "/guide/groball" },
+            { text: "グローバル状態管理凡例", link: "/guide/groball" },
+            {
+              text: "状態管理AuthProvider1.0",
+              link: "/guide/auth_provider",
+            },
+            {
+              text: "状態管理AuthProvider2.0",
+              link: "/guide/auth_provider2",
+            },
+            {
+              text: "状態管理AuthProvider3.0",
+              link: "/guide/auth_provider3",
+            },
+            {
+              text: "状態管理AuthProvider4.0",
+              link: "/guide/auth_provider4",
+            },
+            {
+              text: "状態管理AuthProviderバッグ修正",
+              link: "/guide/auth_provider5",
+            },
             { text: "ダッシュボード（管理画面）", link: "/guide/dashboard" },
+            { text: "会員管理画面1.0", link: "/guide/member1" },
+            { text: "管理者管理画面1.0", link: "/guide/admin1" },
           ],
         },
         {
