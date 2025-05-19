@@ -1,0 +1,1 @@
+import{_ as i,c as a,o as n,ae as h}from"./chunks/framework.Bt0T77vy.js";const g=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"code/github.md","filePath":"code/github.md"}'),k={name:"code/github.md"};function l(t,s,p,e,d,F){return n(),a("div",null,s[0]||(s[0]=[h("",22)]))}const C=i(k,[["render",l]]);export{g as __pageData,C as default};

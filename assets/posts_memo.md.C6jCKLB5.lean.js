@@ -1,0 +1,1 @@
+import{_ as i,c as a,o as t,ae as h}from"./chunks/framework.Bt0T77vy.js";const D=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"posts/memo.md","filePath":"posts/memo.md"}'),n={name:"posts/memo.md"};function p(k,s,l,e,F,r){return t(),a("div",null,s[0]||(s[0]=[h("",158)]))}const g=i(n,[["render",p]]);export{D as __pageData,g as default};
