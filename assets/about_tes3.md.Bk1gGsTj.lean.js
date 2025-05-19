@@ -1,1 +1,0 @@
-import{_ as t,c as a,o as n,ae as i}from"./chunks/framework.Bt0T77vy.js";const u=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"about/tes3.md","filePath":"about/tes3.md"}'),l={name:"about/tes3.md"};function e(p,s,d,o,r,c){return n(),a("div",null,s[0]||(s[0]=[i("",28)]))}const h=t(l,[["render",e]]);export{u as __pageData,h as default};

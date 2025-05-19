@@ -1,1 +1,0 @@
-import{_ as i,c as a,o as t,ae as h}from"./chunks/framework.Bt0T77vy.js";const g=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"about/douki.md","filePath":"about/douki.md"}'),n={name:"about/douki.md"};function l(k,s,p,e,r,F){return t(),a("div",null,s[0]||(s[0]=[h("",34)]))}const o=i(n,[["render",l]]);export{g as __pageData,o as default};

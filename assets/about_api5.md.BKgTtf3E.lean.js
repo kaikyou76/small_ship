@@ -1,1 +1,0 @@
-import{_ as i,c as a,o as n,ae as h}from"./chunks/framework.Bt0T77vy.js";const D=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"about/api5.md","filePath":"about/api5.md"}'),k={name:"about/api5.md"};function t(l,s,p,F,e,r){return n(),a("div",null,s[0]||(s[0]=[h("",34)]))}const g=i(k,[["render",t]]);export{D as __pageData,g as default};
