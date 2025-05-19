@@ -2,7 +2,7 @@ import { defineConfig } from "vitepress";
 
 // https://vitepress.vuejs.org/config/app-configs
 export default defineConfig({
-  base: "/kaikyou-vitepress/",
+  base: "/small_ship/",
   title: "Kaikyou の開発ノート",
   description: "React / Next.js / Cloudflare D1 を中心にした開発ブログ",
   lang: "ja-JP",
@@ -33,7 +33,7 @@ export default defineConfig({
       }
               /* 🌙 ダークモード時は黒に */
       .dark body {
-        background-color: #000000 !important;
+        background-color: #0f0f0f !important;
       }
       `,
     ],
