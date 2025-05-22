@@ -1,605 +1,68 @@
-JWT トークンに `v1:` のようなプレフィックスが付いている場合の正しい処理方法を実装した修正版です。トークンの検証とヘッダー設定を適切に行います。
+npm run dev --base /small_ship/
+D:\vitepress-blog\kaikyou-vitepress
+D:\next-projects\kaikyou-shop
+D:\kaikyou_shop\frontend
 
-```tsx
-// frontend/app/member-center/page.tsx
-"use client";
+npx wrangler kv:namespace create "KAIKYOU_NAMESPACE" --env production
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "../../components/AuthProvider";
-import AddToAdminButton from "../../components/AddToAdminButton";
-import LoadingSpinner from "../../components/LoadingSpinner";
+curl.exe -v "https://backend-production.kai-kyou.workers.dev/api/products/11"
 
-interface Session {
-  id: number;
-  session_token: string;
-  expires_at: string;
-  user_agent: string | null;
-  ip_address: string | null;
-  created_at: string;
-}
+curl.exe -v "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/main/yn003ey3gw2qvesfnmb4bg3l.jpg"
+curl.exe -v "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/additional/bgaqg7jp4y5v394v6yta0ea9.jpg"
 
-interface ApiResponse<T> {
-  data: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
+https://kaikyou-online-shop.onrender.com
+https://kaikyou-online-shop.vercel.app
 
-const ErrorMessage = ({ message }: { message: string }) => (
-  <p className="text-red-600 text-sm">{message}</p>
-);
+npm run dev --clear-cache
+npx wrangler deploy --env production --dry-run --outdir=dist
+npx wrangler deploy --env production
+npx wrangler tail --env production
 
-export default function MemberCenter() {
-  const {
-    isLoggedIn,
-    isLoading: authLoading,
-    currentUser,
-    getToken,
-    clearAuth,
-  } = useAuth();
+npx wrangler d1 execute shopping-db --remote --command="select _ from products";
+npx wrangler d1 execute shopping-db --remote --command="select _ from images";
+npx wrangler d1 execute shopping-db --remote --command="delete from images where id = 8";
+npx wrangler d1 execute shopping-db --remote --command="delete from images where id = 9";
+npx wrangler d1 execute shopping-db --remote --command="delete from images where id = 10";
+npx wrangler d1 execute shopping-db --remote --command="delete from products where id = 9";
 
-  const router = useRouter();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [dataLoading, setDataLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [sessionError, setSessionError] = useState("");
+wrangler r2 bucket cors put production-bucket --file ./cors.json
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiUrl) {
-    throw new Error("APIエンドポイントが設定されていません");
-  }
+npx wrangler d1 execute shopping-db --local --command="select \* from users";
 
-  const fetchData = useCallback(async () => {
-    if (authLoading || !isLoggedIn) return;
+npm cache clean --force
 
-    try {
-      setDataLoading(true);
-      const token = await getToken();
+node_modules と package-lock.json のリセット
+Remove-Item -Recurse -Force node_modules, package-lock.json
+Remove-Item -Recurse -Force node_modules, package-lock.json
+npm install
 
-      if (!token) {
-        throw new Error("認証トークンがありません");
-      }
+ブラウザのハードリフレッシュが必要な場合があります（Ctrl + F5）」
 
-      const sessionsRes = await fetch(`${apiUrl}/api/sessions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+npx wrangler --local
+fsfsg
 
-      if (sessionsRes.status === 401) {
-        clearAuth();
-        router.push("/login");
-        return;
-      }
+npx wrangler d1 execute shopping-db --local --command="SELECT _ FROM users WHERE email='ya@yahoo.co.jp';"
+npx wrangler d1 execute shopping-db --local --command="SELECT _ FROM products;"
+npx wrangler d1 execute shopping-db --local --command="UPDATE products SET stock = 10 WHERE id = 2;"
+npx wrangler d1 execute shopping-db --command="UPDATE products SET stock = 200 WHERE id = 1; UPDATE products SET stock = 78 WHERE id = 3;"
+npx wrangler d1 execute shopping-db --command="SELECT \* FROM products;"
 
-      if (!sessionsRes.ok) {
-        throw new Error("セッション履歴の取得に失敗しました");
-      }
+npx wrangler d1 execute shopping-db --remote --command="UPDATE products SET stock = 200 WHERE id = 1; UPDATE products SET stock = 78 WHERE id = 3;"
+npx wrangler d1 execute shopping-db --remote --command="SELECT id, name, stock FROM products WHERE id IN (1, 3);"
+npx wrangler d1 execute shopping-db --remote --command="SELECT \* FROM products;"
 
-      const sessionsData: ApiResponse<Session[]> = await sessionsRes.json();
+curl.exe -X POST "http://127.0.0.1:8787/api/login" ` -H "Content-Type: application/json"` -d '{\"email\":\"ya@yahoo.co.jp\",\"password\":\"13917047090pack\"}'
+curl.exe http://localhost:8787/health
 
-      if (sessionsData.error) {
-        throw new Error(sessionsData.error.message);
-      }
+# → {"status":"ok"}
 
-      setSessions(sessionsData.data || []);
-      setSessionError("");
-    } catch (err) {
-      console.error("セッション取得エラー:", err);
-      setSessionError(err instanceof Error ? err.message : "不明なエラー");
-      setSessions([]);
-    } finally {
-      setDataLoading(false);
-    }
-  }, [authLoading, isLoggedIn, getToken, router, clearAuth, apiUrl]);
+curl.exe http://localhost:8787/api/products
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+# → 商品一覧 (productGetHandler)
 
-  useEffect(() => {
-    if (!authLoading && !isLoggedIn) {
-      router.push("/login");
-    }
-  }, [authLoading, isLoggedIn, router]);
+curl.exe http://localhost:8787/api/products/1
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError("新しいパスワードが一致しません");
-      return;
-    }
-
-    try {
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error("認証トークンがありません");
-      }
-
-      const response = await fetch(`${apiUrl}/api/users/change-password`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-        }),
-      });
-
-      if (response.status === 401) {
-        clearAuth();
-        router.push("/login");
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "パスワード変更に失敗しました");
-      }
-
-      alert("パスワードが正常に変更されました");
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (err: any) {
-      setError(err.message || "パスワード変更に失敗しました");
-    }
-  };
-
-  if (authLoading || (!isLoggedIn && !authLoading)) {
-    return <LoadingSpinner />;
-  }
-
-  if (dataLoading) {
-    return <LoadingSpinner />;
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* 基本情報セクション */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <div className="flex justify-between items-start">
-            <h2 className="text-2xl font-bold mb-6">基本情報</h2>
-            <AddToAdminButton />
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                氏名
-              </label>
-              <p className="mt-1">{currentUser?.name || "未設定"}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                メールアドレス
-              </label>
-              <p className="mt-1">{currentUser?.email}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                アカウント種別
-              </label>
-              <p className="mt-1 capitalize">{currentUser?.role}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* セキュリティセクション */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold mb-6">セキュリティ</h2>
-          <form onSubmit={handlePasswordChange}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  現在のパスワード
-                </label>
-                <input
-                  type="password"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      currentPassword: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  新しいパスワード
-                </label>
-                <input
-                  type="password"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  value={passwordForm.newPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      newPassword: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  新しいパスワード（確認）
-                </label>
-                <input
-                  type="password"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-              {error && <ErrorMessage message={error} />}
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                パスワードを変更
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* セッション履歴セクション */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-6">ログイン履歴</h2>
-          {sessionError && <ErrorMessage message={sessionError} />}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    日時
-                  </th>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    デバイス
-                  </th>
-                  <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IPアドレス
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sessions.length > 0 ? (
-                  sessions.map((session) => (
-                    <tr key={session.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(session.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {session.user_agent || "不明"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {session.ip_address || "不明"}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-6 py-4 text-center text-sm text-gray-500"
-                    >
-                      セッション履歴がありません
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-```
-
-### 修正後の `AuthProvider.tsx`
-
-```typescript
-"use client";
-
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
-import { useRouter } from "next/navigation";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface AuthContextType {
-  isLoggedIn: boolean;
-  isLoading: boolean;
-  currentUser: User | null;
-  token: string | null;
-  login: (token: string, userData: User) => void;
-  clearAuth: () => void;
-  checkAuth: () => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const router = useRouter();
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!apiUrl) throw new Error("APIエンドポイントが設定されていません");
-
-  // トークンを正規化（プレフィックスを処理）
-  const normalizeToken = (rawToken: string): string => {
-    // "v1:" などのプレフィックスが付いている場合は除去
-    if (rawToken.startsWith("v1:")) {
-      return rawToken.slice(3);
-    }
-    return rawToken;
-  };
-
-  // トークンとユーザー情報を保存
-  const login = (rawToken: string, userData: User) => {
-    const normalizedToken = normalizeToken(rawToken);
-    localStorage.setItem("token", normalizedToken);
-    localStorage.setItem("rawToken", rawToken); // 元のトークンも保持
-    localStorage.setItem("user", JSON.stringify(userData));
-    setToken(normalizedToken);
-    setCurrentUser(userData);
-    setIsLoggedIn(true);
-  };
-
-  // 認証情報をクリア
-  const clearAuth = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("rawToken");
-    localStorage.removeItem("user");
-    setToken(null);
-    setCurrentUser(null);
-    setIsLoggedIn(false);
-  };
-
-  // 認証状態をチェック
-  const checkAuth = async () => {
-    console.log("認証チェック開始");
-    setIsLoading(true);
-    const storedToken = localStorage.getItem("token");
-    const storedRawToken = localStorage.getItem("rawToken"); // 元のトークン
-
-    if (!storedToken || !storedRawToken) {
-      console.log("トークンが存在しません");
-      clearAuth();
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${apiUrl}/api/users/me`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${storedRawToken}`, // 元のトークンを使用
-        },
-      });
-
-      console.log("認証レスポンス:", response.status);
-
-      if (!response.ok) {
-        console.error("認証失敗 - レスポンス:", response.status);
-        throw new Error(`認証失敗: ${response.status}`);
-      }
-
-      const userData = await response.json();
-      console.log("認証成功 - ユーザーデータ:", userData);
-
-      setCurrentUser(userData);
-      setToken(storedToken);
-      setIsLoggedIn(true);
-    } catch (error) {
-      console.error("認証チェックエラー:", error);
-      clearAuth();
-    } finally {
-      console.log("認証チェック終了");
-      setIsLoading(false);
-    }
-  };
-
-  // ログアウト処理
-  const logout = async () => {
-    console.log("ログアウト処理開始");
-    const storedRawToken = localStorage.getItem("rawToken");
-
-    if (!storedRawToken) {
-      clearAuth();
-      return;
-    }
-
-    try {
-      const response = await fetch(`${apiUrl}/api/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${storedRawToken}`, // 元のトークンを使用
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`ログアウトに失敗しました: ${response.status}`);
-      }
-
-      console.log("ログアウト成功");
-      clearAuth();
-      router.push("/login");
-    } catch (error) {
-      console.error("ログアウトエラー:", error);
-      clearAuth();
-    }
-  };
-
-  useEffect(() => {
-    checkAuth();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkAuth();
-      }
-    };
-
-    window.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
-  return (
-    <AuthContext.Provider
-      value={{
-        isLoggedIn,
-        isLoading,
-        currentUser,
-        token,
-        login,
-        clearAuth,
-        checkAuth,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
-```
-
-### 主な変更点
-
-1. **トークン正規化機能の追加**:
-
-   - `normalizeToken` 関数で `v1:` プレフィックスを除去
-   - 内部処理では正規化されたトークンを使用
-   - API リクエスト時には元のトークンを使用
-
-2. **トークンの二重管理**:
-
-   - `token`: 正規化されたトークン（内部検証用）
-   - `rawToken`: 元の形式のトークン（API リクエスト用）
-
-3. **ヘッダー設定の改善**:
-   ```typescript
-   headers: {
-     "Content-Type": "application/json",
-     "Authorization": `Bearer ${storedRawToken}`, // プレフィックス付きの元のトークン
-   },
-   ```
-
-### 使用方法の例
-
-```typescript
-// ログイン処理の例
-const { login } = useAuth();
-
-const handleLogin = async () => {
-  try {
-    const response = await fetch("/api/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    const { token, user } = await response.json();
-    // tokenには "v1:eyJ..." のような形式が入っている
-    login(token, user); // AuthProviderが正規化を処理
-  } catch (error) {
-    console.error("ログイン失敗:", error);
-  }
-};
-```
-
-### バックエンド側の対応
-
-1. **トークン検証の修正**:
-
-```typescript
-// バックエンドのミドルウェア例
-export const authMiddleware = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "認証が必要です" });
-  }
-
-  const rawToken = authHeader.split(" ")[1];
-
-  try {
-    // "v1:" プレフィックスを除去して検証
-    const token = rawToken.startsWith("v1:") ? rawToken.slice(3) : rawToken;
-    const decoded = verifyToken(token); // JWT検証
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "無効なトークン" });
-  }
-};
-```
-
-2. **CORS 設定**:
-
-```typescript
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL,
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-```
-
-この実装により、以下の利点が得られます:
-
-- フロントエンドとバックエンドでトークン形式の不一致を解消
-- プレフィックス付きトークンにも対応
-- 内部処理では常に正規化されたトークンを使用可能
-- API 通信時にはサーバーが期待する形式のトークンを送信
+# → 商品 ID=1 の詳細 (productGetByIdHandler)
 
 # 002-002
 

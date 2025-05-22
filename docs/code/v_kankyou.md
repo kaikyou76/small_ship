@@ -54,33 +54,33 @@ NEXTAUTH_URL_INTERNAL=http://localhost:3000
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    ```
 
-2. **Vercel への環境変数設定**:
+## Vercel で環境変数を設定する方法
 
-   - Vercel ダッシュボード → プロジェクト → Settings → Environment Variables
-   - すべての変数を追加（本番環境用）
+1. **Vercel ダッシュボード**にログインする
+   [https://vercel.com/dashboard](https://vercel.com/dashboard)
 
-3. **NextAuth 設定ファイルの確認**:
+2. 対象のプロジェクトをクリック
 
-   ```ts
-   // auth.ts または [...nextauth].ts
-   export const authOptions: NextAuthOptions = {
-     providers: [...],
-     secret: process.env.NEXTAUTH_SECRET,
-     basePath: process.env.NEXTAUTH_URL,
-   }
-   ```
+3. 左サイドバーから「Settings」を選択
 
-4. **本番環境での動作確認手順**:
+4. メニューから「Environment Variables」を選ぶ
 
-   ```bash
-   # 1. ビルド
-   npm run build
+5. 「Add New Variable」ボタンを押す
 
-   # 2. 本番モードで起動
-   npm run start
+6. 変数名（例: `NEXT_PUBLIC_API_BASE_URL`）と値を入力
 
-   # 3. ブラウザで確認
-   open http://localhost:3000/register
-   ```
+7. 適用したい環境（Production, Preview, Development）を選択
 
-この設定後、Vercel で再デプロイを実行すれば、`/register`ページが正しく動作するはずです。特に`NEXTAUTH_SECRET`はセキュリティ上非常に重要なので、必ず強力なキーを設定してください。
+8. 「Save」ボタンを押して保存
+
+---
+
+### 追加ポイント
+
+- 環境変数名は`NEXT_PUBLIC_`で始めるとフロントエンドにも渡せます（Next.js の場合）
+- 変更した環境変数は次回のデプロイ時に反映されます
+- すでにデプロイ済みの場合は、環境変数変更後に手動で再デプロイしてください
+
+---
+
+もし具体的にどの画面のどの操作で迷っているか教えてもらえたら、画像付きでさらに丁寧に説明しますよ！
