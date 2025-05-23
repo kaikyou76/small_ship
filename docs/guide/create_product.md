@@ -302,6 +302,82 @@ POST https://backend-production.kai-kyou.workers.dev/api/products - Ok @ 2025/5/
 
 ![alt text](image-42.png)
 
+- レスポンスのコード実例
+
+```code
+{
+    "success": true,
+    "data": {
+        "id": 13,
+        "name": "家具",
+        "price": 46000,
+        "stock": 6,
+        "images": {
+            "main": {
+                "url": "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/main/w8x0ogmeq1hl91wyi5y7hij4.avif",
+                "is_main": true,
+                "uploaded_at": "2025-05-23T06:59:57.571Z"
+            },
+            "additional": [
+                {
+                    "url": "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/additional/u8gjl75o7qap0cszihgtz3ba.webp",
+                    "is_main": false,
+                    "uploaded_at": "2025-05-23T06:59:57.571Z"
+                },
+                {
+                    "url": "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/additional/tdtf5jbpjyxonqvyzu8562n2.avif",
+                    "is_main": false,
+                    "uploaded_at": "2025-05-23T06:59:57.571Z"
+                },
+                {
+                    "url": "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/additional/sfw0twameoi8sanl03bnabv6.webp",
+                    "is_main": false,
+                    "uploaded_at": "2025-05-23T06:59:57.571Z"
+                },
+                {
+                    "url": "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/additional/jud76vt050mb7qbtf2v9cjwo.webp",
+                    "is_main": false,
+                    "uploaded_at": "2025-05-23T06:59:57.571Z"
+                },
+                {
+                    "url": "https://pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev/products/additional/h8o7rutkslx15kx1cw8xrt3e.webp",
+                    "is_main": false,
+                    "uploaded_at": "2025-05-23T06:59:57.571Z"
+                }
+            ]
+        },
+        "createdAt": "2025-05-23T06:59:57.571Z"
+    }
+}
+```
+
+- 対応スキーマの参照
+
+```sql
+-- 商品情報
+CREATE TABLE products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT,
+  price INTEGER NOT NULL,
+  stock INTEGER DEFAULT 0,
+  category_id INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+-- 商品画像情報（メイン画像対応）
+CREATE TABLE images (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  image_url TEXT NOT NULL,
+  alt_text TEXT,
+  is_main BOOLEAN NOT NULL DEFAULT 0, -- ✅ メイン画像フラグ
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+
 ## 作成後のデータベース確認
 
 ```
@@ -421,24 +497,54 @@ PS D:\next-projects\kaikyou-shop\backend>
   `frontend/next.config.mjs`
 
 ```js
+// frontend/next.config.mjs
 const isProduction = process.env.NODE_ENV === "production";
+
+const sanitizeDomain = (domain) => {
+  if (!domain) return null;
+  return domain.replace(/^https?:\/\//, "").split("/")[0];
+};
+
+const r2Domain =
+  sanitizeDomain(process.env.NEXT_PUBLIC_R2_PUBLIC_DOMAIN) ||
+  "pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev";
 
 const nextConfig = {
   images: {
-    domains: ["pub-1713e92651fc463cba099b34f8bf5cb1.r2.dev"],
-    remotePatterns:
-      isProduction && process.env.NEXT_PUBLIC_R2_PUBLIC_DOMAIN
-        ? [
-            {
-              protocol: "https",
-              hostname: process.env.NEXT_PUBLIC_R2_PUBLIC_DOMAIN.replace(
-                /^https?:\/\//,
-                ""
-              ),
-              pathname: "/products/**",
-            },
-          ]
-        : [],
+    // 互換性維持のためdomainsも設定
+    domains: [r2Domain],
+
+    // 最新のNext.jsではremotePatternsが推奨
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: r2Domain,
+        pathname: "/products/**",
+      },
+      {
+        protocol: "https",
+        hostname: r2Domain,
+        pathname: "/**", // 全パスを許可する場合
+      },
+    ],
+
+    // Cloudflare R2使用時の最適設定
+    unoptimized: true, // R2の場合は画像最適化を無効に
+    minimumCacheTTL: 60, // キャッシュ時間（秒）
+
+    // 開発環境用追加設定
+    ...(!isProduction && {
+      deviceSizes: [640, 750, 828, 1080, 1200],
+      imageSizes: [16, 32, 48, 64, 96],
+    }),
+  },
+
+  // 実験的機能（必要に応じて）
+  experimental: {
+    staleTimes: {
+      dynamic: 60,
+      static: 60,
+    },
   },
 };
 

@@ -123,7 +123,7 @@ export default defineConfig({
               link: "/guide/keikaku5",
             },
             { text: "1. 🔐 認証系API開発", link: "/guide/api1" },
-            { text: "商品作成", link: "/guide/create_product" },
+            { text: "商品作成🌟", link: "/guide/create_product" },
             { text: "api作成", link: "/guide/api2" },
             { text: "api作成", link: "/guide/api3" },
             { text: "api作成", link: "/guide/api4" },
