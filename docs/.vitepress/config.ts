@@ -126,7 +126,7 @@ export default defineConfig({
             { text: "1. 🔐 認証系API開発", link: "/guide/api1" },
             { text: "商品作成🌟", link: "/guide/product_create" },
             { text: "商品編集🌟", link: "/guide/product_edit" },
-            { text: "api作成", link: "/guide/api4" },
+            { text: "カテゴリ作成 API", link: "/guide/categories_create" },
             { text: "api作成", link: "/guide/api5" },
             { text: "api作成", link: "/guide/api6" },
             { text: "api作成", link: "/guide/api7" },
