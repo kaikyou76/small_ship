@@ -105,8 +105,16 @@ export default defineConfig({
               link: "/guide/auth_provider4",
             },
             {
-              text: "状態管理AuthProviderバッグ修正",
+              text: "状態管理AuthProvider5.0バッグ修正",
               link: "/guide/auth_provider5",
+            },
+            {
+              text: "状態管理AuthProvider6.0完成版",
+              link: "/guide/auth_provider6",
+            },
+            {
+              text: "状態管理AuthProvider7.0token管理追加",
+              link: "/guide/auth_provider7",
             },
             { text: "ダッシュボード（管理画面）", link: "/guide/dashboard" },
             { text: "会員管理画面1.0", link: "/guide/member1" },
@@ -161,6 +169,18 @@ export default defineConfig({
           collapsed: true,
           items: [
             { text: "使い方ガイド", link: "/guide/" },
+            { text: "破棄予定002-基本ページの作成", link: "/guide/keikaku2" },
+            { text: "006-RestAPIの開発", link: "/guide/keikaku6" },
+            { text: "007-RestAPIのバージョンアップ", link: "/guide/keikaku7" },
+            { text: "工作目标", link: "/posts/memo" },
+            { text: "Next.js购物网站开发", link: "/posts/hello-react" },
+          ],
+        },
+        {
+          text: "注意ポイント",
+          collapsed: true,
+          items: [
+            { text: "メモリリーク", link: "/guide/note001" },
             { text: "破棄予定002-基本ページの作成", link: "/guide/keikaku2" },
             { text: "006-RestAPIの開発", link: "/guide/keikaku6" },
             { text: "007-RestAPIのバージョンアップ", link: "/guide/keikaku7" },

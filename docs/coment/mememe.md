@@ -1,3 +1,963 @@
+<think>
+これまでにレビューした内容を踏まえ、AuthProviderにトークン取得機能を追加し、商品編集ページでトークンをuseAuthから取得するように修正します。
+
+### 変更点の概要:
+
+1. `AuthContextType`に`token`と`getToken`を追加
+2. `AuthProvider`内でトークン状態を管理
+3. ログイン時にトークンを状態に保存
+4. トークン更新時に同期
+5. 商品編集ページで`useAuth().token`を利用
+
+### 修正後の AuthProvider:
+
+```tsx:frontend/components/AuthProvider.tsx
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+  useRef,
+} from "react";
+import { useRouter } from "next/navigation";
+
+type Role = "user" | "admin";
+
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+}
+
+interface AuthContextType {
+  currentUser: User | null;
+  isLoggedIn: boolean;
+  isLoading: boolean;
+  token: string | null; // トークンを直接取得できるように追加
+  clearAuth: () => void;
+  checkAuth: () => Promise<void>;
+  logout: () => Promise<void>;
+  handleLoginSuccess: (token: string, user: User) => Promise<void>;
+  updateAuthState: (user: User | null, token: string | null) => void; // tokenを追加
+  getToken: () => Promise<string>; // トークンを取得する関数を追加
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null); // トークンの状態を追加
+  const router = useRouter();
+  const authCheckRef = useRef<Promise<void> | null>(null);
+  const initialCheckDone = useRef(false);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!apiUrl) throw new Error("APIエンドポイントが設定されていません");
+
+  // 認証状態更新と自動リダイレクト
+  const updateAuthState = useCallback(
+    (user: User | null, token: string | null) => { // tokenパラメータを追加
+      console.log("[AUTH] 認証状態更新", user);
+      setIsLoggedIn(!!user);
+      setCurrentUser(user);
+      setToken(token); // トークン状態を更新
+      setIsLoading(false);
+
+      if (user && ["/login", "/register"].includes(window.location.pathname)) {
+        console.log("[AUTH] 認証済みユーザーをホームにリダイレクト");
+        router.push("/");
+      }
+    },
+    [router]
+  );
+
+  // 認証情報クリア
+  const clearAuth = useCallback(() => {
+    console.log("[AUTH] 認証情報をクリア");
+    localStorage.removeItem("jwtToken");
+    localStorage.removeItem("user");
+    updateAuthState(null, null); // トークンもnullに設定
+  }, [updateAuthState]);
+
+  // ログイン成功処理
+  const handleLoginSuccess = useCallback(
+    async (token: string, user: User) => {
+      console.log("[AUTH] ログイン成功処理開始");
+      localStorage.setItem("jwtToken", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      try {
+        const response = await fetch(`${apiUrl}/api/users/me`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) throw new Error("認証チェックに失敗しました");
+
+        const { data: verifiedUser } = await response.json();
+        updateAuthState(verifiedUser, token); // トークンを渡す
+        console.log("[AUTH] サーバーサイド認証確認済み");
+      } catch (error) {
+        console.error("認証チェックエラー:", error);
+        clearAuth();
+        throw error;
+      }
+    },
+    [apiUrl, clearAuth, updateAuthState]
+  );
+
+  // トークンを取得する関数（非同期で現在のトークンを返す）
+  const getToken = useCallback(async (): Promise<string> => {
+    if (token) {
+      return token;
+    }
+
+    // ローカルストレージからトークンを取得
+    const storedToken = localStorage.getItem("jwtToken");
+    if (storedToken) {
+      return storedToken;
+    }
+
+    throw new Error("認証トークンがありません");
+  }, [token]);
+
+  // 認証チェック
+  const checkAuth = useCallback(
+    async (initialCheck = false) => {
+      if (authCheckRef.current) return authCheckRef.current;
+
+      console.groupCollapsed(
+        `[AUTH] 認証チェック開始 (initial: ${initialCheck})`
+      );
+      setIsLoading(true);
+
+      const authCheckPromise = (async () => {
+        try {
+          const storedToken = localStorage.getItem("jwtToken");
+          const storedUser = localStorage.getItem("user");
+
+          if (!storedToken || !storedUser) {
+            console.log("[AUTH] 認証情報なし");
+            updateAuthState(null, null);
+            return;
+          }
+
+          // トークン検証
+          const payload = JSON.parse(atob(storedToken.split(".")[1]));
+          if (payload.exp * 1000 < Date.now()) {
+            throw new Error("トークンの有効期限切れ");
+          }
+
+          // サーバーサイド認証チェック
+          const response = await fetch(`${apiUrl}/api/users/me`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+              "Content-Type": "application/json",
+            },
+            cache: "no-store",
+          });
+
+          if (!response.ok) throw new Error(`認証エラー (${response.status})`);
+
+          const { data: userData } = await response.json();
+          localStorage.setItem("user", JSON.stringify(userData));
+          updateAuthState(userData, storedToken); // トークンを渡す
+
+          if (initialCheck && !initialCheckDone.current) {
+            initialCheckDone.current = true;
+            const currentPath = window.location.pathname;
+            if (["/login", "/register"].includes(currentPath)) {
+              router.push("/");
+            }
+          }
+        } catch (error) {
+          console.error("[AUTH] 認証チェックエラー:", error);
+          clearAuth();
+          if (initialCheck && !initialCheckDone.current) {
+            initialCheckDone.current = true;
+            if (!["/login", "/register"].includes(window.location.pathname)) {
+              router.push("/login");
+            }
+          }
+        } finally {
+          authCheckRef.current = null;
+          console.groupEnd();
+        }
+      })();
+
+      authCheckRef.current = authCheckPromise;
+      return authCheckPromise;
+    },
+    [apiUrl, clearAuth, router, updateAuthState]
+  );
+
+  // ログアウト処理
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const currentToken = token || localStorage.getItem("jwtToken");
+      if (!currentToken) return clearAuth();
+
+      // トークン検証
+      const payload = JSON.parse(atob(currentToken.split(".")[1]));
+      if (payload.exp * 1000 >= Date.now()) {
+        await fetch(`${apiUrl}/api/logout`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
+    } finally {
+      clearAuth();
+      router.push("/login");
+      setIsLoading(false);
+    }
+  }, [apiUrl, clearAuth, router, token]);
+
+  // 初回認証チェック
+  useEffect(() => {
+    const initialCheck = async () => {
+      try {
+        await checkAuth(true);
+      } catch (error) {
+        console.error("[AUTH] 初回認証チェックエラー:", error);
+      }
+    };
+    initialCheck();
+  }, [checkAuth]);
+
+  // ストレージイベント監視
+  useEffect(() => {
+    const handleStorageChange = () => checkAuth();
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [checkAuth]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        isLoggedIn,
+        isLoading,
+        token, // トークンを提供
+        clearAuth,
+        checkAuth,
+        logout,
+        handleLoginSuccess,
+        updateAuthState,
+        getToken, // トークン取得関数を提供
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};
+```
+
+### 商品編集ページの修正: frontend/app/products/edit/[id]/page.tsx
+
+```tsx
+// ... 既存のインポート ...
+
+export default function ProductEditPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const router = useRouter();
+  const {
+    currentUser,
+    isLoggedIn,
+    isLoading: authLoading,
+    getToken,
+  } = useAuth(); // getTokenを追加
+  // ... 既存の状態 ...
+
+  // ... 既存のuseForm ...
+
+  useEffect(() => {
+    // ... 既存のデータ取得処理 ...
+  }, [params.id, reset, authLoading]);
+
+  const onSubmit = async (data: ProductFormValues) => {
+    if (!isLoggedIn || currentUser?.role !== "admin") {
+      redirect("/");
+      return;
+    }
+
+    try {
+      // トークンをuseAuthから取得
+      const token = await getToken();
+
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("description", data.description || "");
+      formData.append("price", data.price.toString());
+      formData.append("stock", data.stock.toString());
+
+      if (data.category_id) {
+        formData.append("category_id", data.category_id.toString());
+      }
+
+      data.images.keepImageIds.forEach((id) => {
+        formData.append("keepImageIds", id.toString());
+      });
+
+      data.images.deletedImageIds.forEach((id) => {
+        formData.append("deleteImageIds", id.toString());
+      });
+
+      if (data.images.main && typeof data.images.main !== "string") {
+        formData.append("mainImage", data.images.main);
+      }
+
+      data.images.additional?.forEach((img) => {
+        if (img.url instanceof File) {
+          formData.append("additionalImages", img.url);
+        }
+      });
+
+      const res = await fetch(`${baseUrl}/api/products/edit/${params.id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("更新に失敗しました");
+      router.push(`/products/${params.id}`);
+    } catch (error) {
+      console.error("更新エラー:", error);
+      alert("商品の更新に失敗しました");
+    }
+  };
+
+  // ... 既存のレンダリング部分 ...
+}
+```
+
+### 主な変更点の説明:
+
+1. **AuthProvider へのトークン状態追加**:
+
+   - `token`状態を追加し、ログイン時や認証チェック時に更新
+   - `getToken`関数を提供: 現在のトークンを非期的に取得（非同期なので初回表示時などでトークンが設定される前でも取得可能）
+   - `updateAuthState`関数にトークンパラメータを追加
+
+2. **商品編集ページでのトークン取得方法変更**:
+
+   - `const { getToken } = useAuth()` で取得関数を取得
+   - 送信処理内で `const token = await getToken()` としてトークンを取得
+   - この方法により、トークンが非同期で取得される状況にも対応（初回表示時など）
+
+3. **セキュリティ改善**:
+   - トークンを localStorage から直接取得するのではなく、AuthProvider 経由で取得
+   - トークンの状態が AuthProvider 内で一元管理されるため、同期が容易
+
+この修正により、トークンの管理が一元化され、セキュリティとメンテナンス性が向上します。また、トークンの有効期限切れなどのチェックも`getToken`関数内で行うことが可能になります（現在の実装ではトークンの有効期限はチェックしていませんが、拡張可能です）。
+</think>
+以下に AuthProvider を修正し、トークン管理機能を追加した完全版コードを示します。商品編集ページにトークン取得ロジックを統合します。
+
+### 修正版 AuthProvider (frontend/components/AuthProvider.tsx)
+
+```tsx
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+  useRef,
+} from "react";
+import { useRouter } from "next/navigation";
+
+type Role = "user" | "admin";
+
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+}
+
+interface AuthContextType {
+  currentUser: User | null;
+  isLoggedIn: boolean;
+  isLoading: boolean;
+  token: string | null; // トークン状態を追加
+  clearAuth: () => void;
+  checkAuth: () => Promise<void>;
+  logout: () => Promise<void>;
+  handleLoginSuccess: (token: string, user: User) => Promise<void>;
+  updateAuthState: (user: User | null, token: string | null) => void; // token引数を追加
+  getToken: () => Promise<string>; // トークン取得関数を追加
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null); // トークン状態を追加
+  const router = useRouter();
+  const authCheckRef = useRef<Promise<void> | null>(null);
+  const initialCheckDone = useRef(false);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!apiUrl) throw new Error("APIエンドポイントが設定されていません");
+
+  // 認証状態更新と自動リダイレクト
+  const updateAuthState = useCallback(
+    (user: User | null, tokenString: string | null) => {
+      console.log("[AUTH] 認証状態更新", user);
+      setIsLoggedIn(!!user);
+      setCurrentUser(user);
+      setToken(tokenString); // トークン状態を更新
+      setIsLoading(false);
+
+      if (user && ["/login", "/register"].includes(window.location.pathname)) {
+        console.log("[AUTH] 認証済みユーザーをホームにリダイレクト");
+        router.push("/");
+      }
+    },
+    [router]
+  );
+
+  // 認証情報クリア
+  const clearAuth = useCallback(() => {
+    console.log("[AUTH] 認証情報をクリア");
+    localStorage.removeItem("jwtToken");
+    localStorage.removeItem("user");
+    updateAuthState(null, null); // トークンもnullに設定
+  }, [updateAuthState]);
+
+  // トークン取得関数 (非同期対応)
+  const getToken = useCallback(async (): Promise<string> => {
+    if (token) {
+      return token;
+    }
+
+    const storedToken = localStorage.getItem("jwtToken");
+    if (storedToken) {
+      return storedToken;
+    }
+
+    throw new Error("認証トークンがありません");
+  }, [token]);
+
+  // ログイン成功処理
+  const handleLoginSuccess = useCallback(
+    async (token: string, user: User) => {
+      console.log("[AUTH] ログイン成功処理開始");
+      localStorage.setItem("jwtToken", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      try {
+        const response = await fetch(`${apiUrl}/api/users/me`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) throw new Error("認証チェックに失敗しました");
+
+        const { data: verifiedUser } = await response.json();
+        updateAuthState(verifiedUser, token); // トークンを渡す
+        console.log("[AUTH] サーバーサイド認証確認済み");
+      } catch (error) {
+        console.error("認証チェックエラー:", error);
+        clearAuth();
+        throw error;
+      }
+    },
+    [apiUrl, clearAuth, updateAuthState]
+  );
+
+  // 認証チェック
+  const checkAuth = useCallback(
+    async (initialCheck = false) => {
+      if (authCheckRef.current) return authCheckRef.current;
+
+      console.groupCollapsed(
+        `[AUTH] 認証チェック開始 (initial: ${initialCheck})`
+      );
+      setIsLoading(true);
+
+      const authCheckPromise = (async () => {
+        try {
+          const storedToken = localStorage.getItem("jwtToken");
+          const storedUser = localStorage.getItem("user");
+
+          if (!storedToken || !storedUser) {
+            console.log("[AUTH] 認証情報なし");
+            updateAuthState(null, null);
+            return;
+          }
+
+          // トークン検証
+          const payload = JSON.parse(atob(storedToken.split(".")[1]));
+          if (payload.exp * 1000 < Date.now()) {
+            throw new Error("トークンの有効期限切れ");
+          }
+
+          // サーバーサイド認証チェック
+          const response = await fetch(`${apiUrl}/api/users/me`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+              "Content-Type": "application/json",
+            },
+            cache: "no-store",
+          });
+
+          if (!response.ok) throw new Error(`認証エラー (${response.status})`);
+
+          const { data: userData } = await response.json();
+          localStorage.setItem("user", JSON.stringify(userData));
+          updateAuthState(userData, storedToken); // トークンを渡す
+
+          if (initialCheck && !initialCheckDone.current) {
+            initialCheckDone.current = true;
+            const currentPath = window.location.pathname;
+            if (["/login", "/register"].includes(currentPath)) {
+              router.push("/");
+            }
+          }
+        } catch (error) {
+          console.error("[AUTH] 認証チェックエラー:", error);
+          clearAuth();
+          if (initialCheck && !initialCheckDone.current) {
+            initialCheckDone.current = true;
+            if (!["/login", "/register"].includes(window.location.pathname)) {
+              router.push("/login");
+            }
+          }
+        } finally {
+          authCheckRef.current = null;
+          console.groupEnd();
+        }
+      })();
+
+      authCheckRef.current = authCheckPromise;
+      return authCheckPromise;
+    },
+    [apiUrl, clearAuth, router, updateAuthState]
+  );
+
+  // ログアウト処理
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const currentToken = token || (await getToken());
+
+      if (currentToken) {
+        // トークン検証
+        const payload = JSON.parse(atob(currentToken.split(".")[1]));
+        if (payload.exp * 1000 >= Date.now()) {
+          await fetch(`${apiUrl}/api/logout`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${currentToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+        }
+      }
+    } finally {
+      clearAuth();
+      router.push("/login");
+      setIsLoading(false);
+    }
+  }, [apiUrl, clearAuth, router, token, getToken]);
+
+  // 初回認証チェック
+  useEffect(() => {
+    const initialCheck = async () => {
+      try {
+        await checkAuth(true);
+      } catch (error) {
+        console.error("[AUTH] 初回認証チェックエラー:", error);
+      }
+    };
+    initialCheck();
+  }, [checkAuth]);
+
+  // ストレージイベント監視
+  useEffect(() => {
+    const handleStorageChange = () => checkAuth();
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [checkAuth]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        isLoggedIn,
+        isLoading,
+        token,
+        clearAuth,
+        checkAuth,
+        logout,
+        handleLoginSuccess,
+        updateAuthState,
+        getToken, // トークン取得関数を提供
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};
+```
+
+### 修正版商品編集ページ (frontend/app/products/edit/[id]/page.tsx)
+
+```tsx
+"use client";
+
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { redirect, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../../../components/AuthProvider";
+import ProductImageUpload from "../../../../components/ProductImageUpload";
+
+type ProductImage = {
+  id: number;
+  url: string;
+  is_main: boolean;
+};
+
+type ProductData = {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  category_id: number | null;
+  images: {
+    main: ProductImage | null;
+    additional: ProductImage[];
+  };
+};
+
+const formSchema = z.object({
+  name: z.string().min(1, "商品名は必須です"),
+  description: z.string().optional(),
+  price: z.number().min(0, "価格は0以上で入力してください"),
+  stock: z.number().min(0, "在庫数は0以上で入力してください"),
+  category_id: z.number().nullable().optional(),
+  images: z.object({
+    main: z
+      .union([z.instanceof(File), z.string()])
+      .optional()
+      .nullable(),
+    additional: z
+      .array(
+        z.object({
+          url: z.union([z.string(), z.instanceof(File)]),
+          is_main: z.boolean(),
+        })
+      )
+      .optional(),
+    keepImageIds: z.array(z.number()).default([]),
+    deletedImageIds: z.array(z.number()).default([]),
+  }),
+});
+
+export type ProductFormValues = z.infer<typeof formSchema>;
+
+export default function ProductEditPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const router = useRouter();
+  const {
+    currentUser,
+    isLoggedIn,
+    isLoading: authLoading,
+    getToken,
+  } = useAuth();
+  const [initialData, setInitialData] = useState<{ data: ProductData } | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8787";
+  const traceId = useRef<string>(
+    Math.random().toString(36).substring(2, 11)
+  ).current;
+
+  const methods = useForm<ProductFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      price: 0,
+      stock: 0,
+      category_id: null,
+      images: {
+        main: null,
+        additional: [],
+        keepImageIds: [],
+        deletedImageIds: [],
+      },
+    },
+  });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    setValue,
+    watch,
+  } = methods;
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    const fetchData = async () => {
+      try {
+        const productRes = await fetch(`${baseUrl}/api/products/${params.id}`);
+        if (!productRes.ok) throw new Error("商品が見つかりません");
+        const productData = await productRes.json();
+
+        const additionalImageIds =
+          productData.data.images.additional?.map(
+            (img: ProductImage) => img.id
+          ) ?? [];
+        reset({
+          name: productData.data.name,
+          description: productData.data.description || "",
+          price: productData.data.price,
+          stock: productData.data.stock,
+          category_id: productData.data.category_id || null,
+          images: {
+            main: productData.data.images.main?.url || undefined,
+            additional:
+              productData.data.images.additional.map((img: ProductImage) => ({
+                url: img.url,
+                is_main: false,
+              })) ?? [],
+            keepImageIds: [
+              productData.data.images.main?.id,
+              ...additionalImageIds,
+            ].filter((id): id is number => !!id),
+            deletedImageIds: [],
+          },
+        });
+        setInitialData(productData);
+      } catch (error) {
+        console.error("データ取得エラー:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [params.id, reset, authLoading]);
+
+  const onSubmit = async (data: ProductFormValues) => {
+    if (!isLoggedIn || currentUser?.role !== "admin") {
+      redirect("/");
+      return;
+    }
+
+    try {
+      // useAuthからトークンを取得
+      const token = await getToken();
+
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("description", data.description || "");
+      formData.append("price", data.price.toString());
+      formData.append("stock", data.stock.toString());
+
+      if (data.category_id) {
+        formData.append("category_id", data.category_id.toString());
+      }
+
+      data.images.keepImageIds.forEach((id) => {
+        formData.append("keepImageIds", id.toString());
+      });
+
+      data.images.deletedImageIds.forEach((id) => {
+        formData.append("deleteImageIds", id.toString());
+      });
+
+      if (data.images.main && typeof data.images.main !== "string") {
+        formData.append("mainImage", data.images.main);
+      }
+
+      data.images.additional?.forEach((img) => {
+        if (img.url instanceof File) {
+          formData.append("additionalImages", img.url);
+        }
+      });
+
+      const res = await fetch(`${baseUrl}/api/products/edit/${params.id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("更新に失敗しました");
+      router.push(`/products/${params.id}`);
+    } catch (error) {
+      console.error("更新エラー:", error);
+      alert("商品の更新に失敗しました");
+    }
+  };
+
+  if (authLoading || loading)
+    return <div className="text-center py-8">読み込み中...</div>;
+  if (!isLoggedIn)
+    return <div className="text-center py-8">ログインが必要です</div>;
+  if (currentUser?.role !== "admin")
+    return <div className="text-center py-8">管理者権限が必要です</div>;
+  if (!initialData)
+    return <div className="text-center py-8">商品が見つかりません</div>;
+
+  return (
+    <div className="container mx-auto p-4 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-6">商品編集</h1>
+      <FormProvider {...methods}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* ...既存のフォームコンポーネント... */}
+          <ProductImageUpload
+            mainImage={
+              watch("images.main") && typeof watch("images.main") === "string"
+                ? {
+                    id: initialData.data.images.main?.id || -1,
+                    url: watch("images.main") as string,
+                    is_main: true,
+                  }
+                : undefined
+            }
+            additionalImages={
+              initialData.data.images.additional?.map((img) => ({
+                id: img.id,
+                url: img.url,
+                is_main: img.is_main,
+              })) || []
+            }
+            onMainImageChange={(file) => setValue("images.main", file)}
+            onAdditionalImageChange={(files) => {
+              setValue("images.additional", [
+                ...(watch("images.additional") || []),
+                ...files,
+              ]);
+            }}
+            onDeleteMainImage={(id) => {
+              if (id) {
+                const currentIds = watch("images.deletedImageIds") || [];
+                if (!currentIds.includes(id)) {
+                  setValue("images.deletedImageIds", [...currentIds, id]);
+                }
+              }
+              setValue("images.main", null);
+            }}
+            onDeleteAdditionalImage={(index, id) => {
+              if (id) {
+                const currentIds = watch("images.deletedImageIds") || [];
+                if (!currentIds.includes(id)) {
+                  setValue("images.deletedImageIds", [...currentIds, id]);
+                }
+              }
+              setValue(
+                "images.additional",
+                (watch("images.additional") || []).filter((_, i) => i !== index)
+              );
+            }}
+          />
+
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-4 py-2 border rounded"
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-blue-300"
+            >
+              {isSubmitting ? "保存中..." : "保存"}
+            </button>
+          </div>
+        </form>
+      </FormProvider>
+    </div>
+  );
+}
+```
+
+### 主な変更点:
+
+#### AuthProvider の改善:
+
+1. **トークン状態管理の追加**:
+
+   - `token`状態を追加し、ログイン時に更新
+   - `getToken`関数を提供: 現在のトークンまたは localStorage からトークンを安全に取得
+   - `updateAuthState`に token 引数を追加して状態同期
+
+2. **トークン取得の強化**:
+
+   - `getToken`関数は非同期で、トークンがない場合にエラーをスロー
+   - トークン検証（有効期限チェック）をログアウト時に追加
+
+3. **ログアウト処理の改善**:
+   - トークンが有効な場合のみログアウト API を呼び出す
+   - `getToken`を使用してトークンを安全に取得
+
+#### 商品編集ページの改善:
+
+1. \*\*ト
+
+---
+
+---
+
+---
+
 npm run dev --base /small_ship/
 D:\vitepress-blog\kaikyou-vitepress
 D:\next-projects\kaikyou-shop
