@@ -176,9 +176,21 @@ export default defineConfig({
           ],
         },
         {
+          text: "フック関数について",
+          collapsed: true,
+          items: [
+            { text: "useForm", link: "/coment/useForm" },
+            { text: "useCallback", link: "/coment/useCallback" },
+            { text: "useMemo", link: "/coment/useMemo" },
+          ],
+        },
+        {
           text: "プロジェクト設定",
           collapsed: false,
-          items: [{ text: "vercel.json", link: "/coment/vercel_json" }],
+          items: [
+            { text: "vercel.json", link: "/coment/vercel_json" },
+            { text: "wrangler.jsonc", link: "/coment/wrangler.jsonc" },
+          ],
         },
       ],
       "/guide/": [
