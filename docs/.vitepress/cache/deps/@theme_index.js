@@ -9,38 +9,38 @@ import {
 } from "./chunk-JN5NFW2R.js";
 
 // node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/index.js
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/fonts.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/fonts.css";
 
 // node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/without-fonts.js
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/vars.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/base.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/icons.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/utils.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/custom-block.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-code.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-code-group.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-doc.css";
-import "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-sponsor.css";
-import VPBadge from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPBadge.vue";
-import Layout from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/Layout.vue";
-import { default as default2 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPBadge.vue";
-import { default as default3 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPButton.vue";
-import { default as default4 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPDocAsideSponsors.vue";
-import { default as default5 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPFeatures.vue";
-import { default as default6 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeContent.vue";
-import { default as default7 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeFeatures.vue";
-import { default as default8 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeHero.vue";
-import { default as default9 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeSponsors.vue";
-import { default as default10 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPImage.vue";
-import { default as default11 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPLink.vue";
-import { default as default12 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPNavBarSearch.vue";
-import { default as default13 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPSocialLink.vue";
-import { default as default14 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPSocialLinks.vue";
-import { default as default15 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPSponsors.vue";
-import { default as default16 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamMembers.vue";
-import { default as default17 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamPage.vue";
-import { default as default18 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamPageSection.vue";
-import { default as default19 } from "D:/vitepress-blog/kaikyou-vitepress/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamPageTitle.vue";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/vars.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/base.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/icons.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/utils.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/custom-block.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-code.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-code-group.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-doc.css";
+import "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/styles/components/vp-sponsor.css";
+import VPBadge from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPBadge.vue";
+import Layout from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/Layout.vue";
+import { default as default2 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPBadge.vue";
+import { default as default3 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPButton.vue";
+import { default as default4 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPDocAsideSponsors.vue";
+import { default as default5 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPFeatures.vue";
+import { default as default6 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeContent.vue";
+import { default as default7 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeFeatures.vue";
+import { default as default8 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeHero.vue";
+import { default as default9 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPHomeSponsors.vue";
+import { default as default10 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPImage.vue";
+import { default as default11 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPLink.vue";
+import { default as default12 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPNavBarSearch.vue";
+import { default as default13 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPSocialLink.vue";
+import { default as default14 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPSocialLinks.vue";
+import { default as default15 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPSponsors.vue";
+import { default as default16 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamMembers.vue";
+import { default as default17 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamPage.vue";
+import { default as default18 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamPageSection.vue";
+import { default as default19 } from "F:/small_ship/node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/components/VPTeamPageTitle.vue";
 
 // node_modules/.pnpm/vitepress@1.6.3_@algolia+cl_02ebe3466a7ce62cea42c334a01ea00f/node_modules/vitepress/dist/client/theme-default/composables/local-nav.js
 import { onContentUpdated } from "vitepress";

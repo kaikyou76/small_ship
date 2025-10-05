@@ -50,6 +50,7 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
+      { text: "🌐 20250923iFlow_CLI", link: "/coment/20250923iFlow_CLI" },
       { text: "🏠 ホーム", link: "/" },
       { text: "📚 ガイド", link: "/guide/" },
       { text: "🛠️ チュートリアル", link: "/tutorial/" },
